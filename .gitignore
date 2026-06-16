@@ -1,0 +1,8 @@
+MaterialToolShared/
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+.claude/
+.playwright-mcp/
+*.tmp.*
+=1.30.0

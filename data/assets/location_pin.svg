@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 115">
+  <!-- Shadow ellipse (dark blue) -->
+  <ellipse cx="50" cy="104" rx="26" ry="11" fill="#1a4fc4"/>
+  <!-- Pin body (bright cyan-blue) -->
+  <path d="M50 4
+    C29 4 12 21 12 42
+    C12 60 30 78 42 92
+    C45 96 50 102 50 102
+    C50 102 55 96 58 92
+    C70 78 88 60 88 42
+    C88 21 71 4 50 4 Z"
+    fill="#29b6f6"/>
+  <!-- White inner circle -->
+  <circle cx="50" cy="40" r="18" fill="white"/>
+</svg>

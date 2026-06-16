@@ -1,0 +1,23 @@
+# 런타임 데이터 (DB, 산출물, 사진)
+MaterialToolShared/
+
+# Python 캐시
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 백업
+*.bak
+app_legacy.py
+app_new.py
+
+# 임시 파일
+nul
+=1.30.0
+
+# 가상환경
+.venv/
+venv/
+env/
