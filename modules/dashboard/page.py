@@ -178,16 +178,8 @@ div.dash-wrap::-webkit-scrollbar-thumb:hover { background: #334155 !important; }
   line-height: 1 !important;
 }
 
-/* 모바일: 테이블 숨김, 모바일 전용 영역 표시 */
+/* 모바일: 모바일 전용 영역 숨김, 테이블 표시 (가로 스크롤 가능) */
 .dash-mobile-only { display: none; }
-@media (max-width: 768px) {
-  .dash-wrap { display: none !important; }
-  .dash-mobile-only { display: block !important; }
-}
-/* 데스크톱: 모바일 전용 영역 숨김 */
-@media (min-width: 769px) {
-  .dash-mobile-only { display: none !important; }
-}
 </style>
 """
 
