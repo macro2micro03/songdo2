@@ -145,23 +145,25 @@ div.dash-wrap::-webkit-scrollbar-thumb:hover { background: #334155 !important; }
 .dash-table td:hover {
   background: #dbeafe !important;
 }
-.dash-table td[title] {
-  position: relative;
-}
-.dash-table td[title]:hover::after {
-  content: attr(title);
+.tooltip-content {
   position: absolute;
   bottom: 110%;
   left: 50%;
   transform: translateX(-50%);
   background: #0f172a;
   color: #ffffff;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-radius: 4px;
   font-size: 11px;
   white-space: nowrap;
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 9999;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.dash-table td:hover .tooltip-content {
+  opacity: 1;
 }
 .dash-table tr:nth-child(even) td { background: #f8fafc; }
 .dash-table tr:nth-child(odd)  td { background: #ffffff; }
@@ -463,18 +465,18 @@ def page_dashboard(con: Client):
             total_cnt += vcnt_int
 
             tds = (
-                f'<td title="{i}">{i}</td>'
-                f'<td title="{zone}">{zone}</td>'
-                f'<td title="{gate}">{gate}</td>'
-                f'<td title="{company}">{company}</td>'
-                f'<td title="{item}">{item}</td>'
-                f'<td title="{vcnt}">{vcnt}</td>'
-                f'<td title="{kind_lbl} / {vton}"><span class="{kind_cls}">{kind_lbl}</span> / {vton}</td>'
-                f'<td title="{loading}">{loading}</td>'
-                f'<td title="{t_from}">{t_from}</td>'
-                f'<td title="{sup}">{sup}</td>'
-                f'<td title="{guide}">{guide}</td>'
-                f'<td title="{mgr}">{mgr}</td>'
+                f'<td><div style="position:relative">{i}<div class="tooltip-content">{i}</div></div></td>'
+                f'<td><div style="position:relative">{zone}<div class="tooltip-content">{zone}</div></div></td>'
+                f'<td><div style="position:relative">{gate}<div class="tooltip-content">{gate}</div></div></td>'
+                f'<td><div style="position:relative">{company}<div class="tooltip-content">{company}</div></div></td>'
+                f'<td><div style="position:relative">{item}<div class="tooltip-content">{item}</div></div></td>'
+                f'<td><div style="position:relative">{vcnt}<div class="tooltip-content">{vcnt}</div></div></td>'
+                f'<td><div style="position:relative"><span class="{kind_cls}">{kind_lbl}</span> / {vton}<div class="tooltip-content">{kind_lbl} / {vton}</div></div></td>'
+                f'<td><div style="position:relative">{loading}<div class="tooltip-content">{loading}</div></div></td>'
+                f'<td><div style="position:relative">{t_from}<div class="tooltip-content">{t_from}</div></div></td>'
+                f'<td><div style="position:relative">{sup}<div class="tooltip-content">{sup}</div></div></td>'
+                f'<td><div style="position:relative">{guide}<div class="tooltip-content">{guide}</div></div></td>'
+                f'<td><div style="position:relative">{mgr}<div class="tooltip-content">{mgr}</div></div></td>'
             )
             row_parts.append(f'<tr>{tds}</tr>')
 
