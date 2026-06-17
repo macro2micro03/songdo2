@@ -140,6 +140,28 @@ div.dash-wrap::-webkit-scrollbar-thumb:hover { background: #334155 !important; }
   vertical-align: middle !important;
   color: #0f172a;
   word-break: keep-all;
+  cursor: help;
+}
+.dash-table td:hover {
+  background: #dbeafe !important;
+}
+.dash-table td[title] {
+  position: relative;
+}
+.dash-table td[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .dash-table tr:nth-child(even) td { background: #f8fafc; }
 .dash-table tr:nth-child(odd)  td { background: #ffffff; }
@@ -441,18 +463,18 @@ def page_dashboard(con: Client):
             total_cnt += vcnt_int
 
             tds = (
-                f'<td>{i}</td>'
-                f'<td>{zone}</td>'
-                f'<td>{gate}</td>'
-                f'<td>{company}</td>'
-                f'<td>{item}</td>'
-                f'<td>{vcnt}</td>'
-                f'<td><span class="{kind_cls}">{kind_lbl}</span> / {vton}</td>'
-                f'<td>{loading}</td>'
-                f'<td>{t_from}</td>'
-                f'<td>{sup}</td>'
-                f'<td>{guide}</td>'
-                f'<td>{mgr}</td>'
+                f'<td title="{i}">{i}</td>'
+                f'<td title="{zone}">{zone}</td>'
+                f'<td title="{gate}">{gate}</td>'
+                f'<td title="{company}">{company}</td>'
+                f'<td title="{item}">{item}</td>'
+                f'<td title="{vcnt}">{vcnt}</td>'
+                f'<td title="{kind_lbl} / {vton}"><span class="{kind_cls}">{kind_lbl}</span> / {vton}</td>'
+                f'<td title="{loading}">{loading}</td>'
+                f'<td title="{t_from}">{t_from}</td>'
+                f'<td title="{sup}">{sup}</td>'
+                f'<td title="{guide}">{guide}</td>'
+                f'<td title="{mgr}">{mgr}</td>'
             )
             row_parts.append(f'<tr>{tds}</tr>')
 
