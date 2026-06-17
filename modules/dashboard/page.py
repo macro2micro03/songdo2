@@ -404,6 +404,9 @@ def page_dashboard(con: Client):
     target_str = str(cur_date)
     reqs = _req_list_for_date(con, project_id, target_str)
 
+    # 시간대별(내림차순) → zone별(내림차순) 정렬
+    reqs = sorted(reqs, key=lambda r: (r.get("time_from", ""), r.get("booking_zone", "")), reverse=True)
+
     dow_map = {0:"월요일", 1:"화요일", 2:"수요일", 3:"목요일",
                4:"금요일", 5:"토요일", 6:"일요일"}
     date_label = f"{cur_date.year}년 {cur_date.month}월 {cur_date.day}일 {dow_map[cur_date.weekday()]}"
