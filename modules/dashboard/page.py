@@ -145,25 +145,32 @@ div.dash-wrap::-webkit-scrollbar-thumb:hover { background: #334155 !important; }
 .dash-table td:hover {
   background: #dbeafe !important;
 }
+@media (max-width: 480px) {
+  .dash-table td {
+    padding: 8px 4px;
+    font-size: 10px;
+    word-break: break-word;
+    white-space: normal;
+    vertical-align: top;
+    max-width: 70px;
+  }
+}
 .tooltip-content {
-  position: absolute;
-  bottom: 110%;
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
   background: #0f172a;
   color: #ffffff;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  white-space: nowrap;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  max-width: 280px;
+  word-wrap: break-word;
   z-index: 9999;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  display: none;
+  cursor: pointer;
 }
-.dash-table td:hover .tooltip-content {
-  opacity: 1;
+.tooltip-content.active {
+  display: block;
 }
 .dash-table tr:nth-child(even) td { background: #f8fafc; }
 .dash-table tr:nth-child(odd)  td { background: #ffffff; }
@@ -465,18 +472,18 @@ def page_dashboard(con: Client):
             total_cnt += vcnt_int
 
             tds = (
-                f'<td><div style="position:relative">{i}<div class="tooltip-content">{i}</div></div></td>'
-                f'<td><div style="position:relative">{zone}<div class="tooltip-content">{zone}</div></div></td>'
-                f'<td><div style="position:relative">{gate}<div class="tooltip-content">{gate}</div></div></td>'
-                f'<td><div style="position:relative">{company}<div class="tooltip-content">{company}</div></div></td>'
-                f'<td><div style="position:relative">{item}<div class="tooltip-content">{item}</div></div></td>'
-                f'<td><div style="position:relative">{vcnt}<div class="tooltip-content">{vcnt}</div></div></td>'
-                f'<td><div style="position:relative"><span class="{kind_cls}">{kind_lbl}</span> / {vton}<div class="tooltip-content">{kind_lbl} / {vton}</div></div></td>'
-                f'<td><div style="position:relative">{loading}<div class="tooltip-content">{loading}</div></div></td>'
-                f'<td><div style="position:relative">{t_from}<div class="tooltip-content">{t_from}</div></div></td>'
-                f'<td><div style="position:relative">{sup}<div class="tooltip-content">{sup}</div></div></td>'
-                f'<td><div style="position:relative">{guide}<div class="tooltip-content">{guide}</div></div></td>'
-                f'<td><div style="position:relative">{mgr}<div class="tooltip-content">{mgr}</div></div></td>'
+                f'<td data-content="{i}" class="tooltip-cell">{i}</td>'
+                f'<td data-content="{zone}" class="tooltip-cell">{zone}</td>'
+                f'<td data-content="{gate}" class="tooltip-cell">{gate}</td>'
+                f'<td data-content="{company}" class="tooltip-cell">{company}</td>'
+                f'<td data-content="{item}" class="tooltip-cell">{item}</td>'
+                f'<td data-content="{vcnt}" class="tooltip-cell">{vcnt}</td>'
+                f'<td data-content="{kind_lbl} / {vton}" class="tooltip-cell"><span class="{kind_cls}">{kind_lbl}</span> / {vton}</td>'
+                f'<td data-content="{loading}" class="tooltip-cell">{loading}</td>'
+                f'<td data-content="{t_from}" class="tooltip-cell">{t_from}</td>'
+                f'<td data-content="{sup}" class="tooltip-cell">{sup}</td>'
+                f'<td data-content="{guide}" class="tooltip-cell">{guide}</td>'
+                f'<td data-content="{mgr}" class="tooltip-cell">{mgr}</td>'
             )
             row_parts.append(f'<tr>{tds}</tr>')
 
@@ -555,6 +562,60 @@ def page_dashboard(con: Client):
     if(el){ initDrag(el); } else { setTimeout(tryInit,300); }
   }
   tryInit();
+})();
+</script>
+
+<script>
+(function(){
+  let activeTooltip = null;
+  let lastClickedCell = null;
+  let lastClickTime = 0;
+
+  document.addEventListener('click', function(e){
+    const cell = e.target.closest('.tooltip-cell');
+
+    // 말풍선 클릭 → 사라짐
+    if(e.target.classList && e.target.classList.contains('tooltip-content')){
+      if(activeTooltip) activeTooltip.remove();
+      activeTooltip = null;
+      lastClickedCell = null;
+      return;
+    }
+
+    // 테이블 셀 클릭
+    if(cell){
+      e.stopPropagation();
+      const now = Date.now();
+      const isDoubleClick = lastClickedCell === cell && (now - lastClickTime) < 300;
+
+      if(isDoubleClick){
+        // 더블클릭 → 페이지 이동 (요청 ID 기반)
+        const row = cell.closest('tr');
+        const reqData = row.getAttribute('data-req-id');
+        if(reqData){
+          window.location.href = '?page=approval&rid=' + reqData;
+        }
+      } else {
+        // 싱글클릭 → 말풍선 표시
+        const content = cell.getAttribute('data-content') || cell.textContent;
+        if(activeTooltip) activeTooltip.remove();
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tooltip-content active';
+        tooltip.textContent = content;
+
+        const rect = cell.getBoundingClientRect();
+        tooltip.style.top = (rect.top - 60) + 'px';
+        tooltip.style.left = (rect.left + rect.width/2 - 140) + 'px';
+
+        document.body.appendChild(tooltip);
+        activeTooltip = tooltip;
+      }
+
+      lastClickedCell = cell;
+      lastClickTime = now;
+    }
+  });
 })();
 </script>
 """, unsafe_allow_html=True)
