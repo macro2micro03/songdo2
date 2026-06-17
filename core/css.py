@@ -234,13 +234,19 @@ def inject_css():
     }
     /* 모바일: 아이콘 + 텍스트 모두 표시, 크기만 축소 */
     @media (max-width: 600px) {
+      .stHorizontalBlock:has([class*="st-key-topnav"]) button {
+        padding: 6px 2px !important;
+        font-size: clamp(9px, 1.2vw, 12px) !important;
+      }
       .stHorizontalBlock:has([class*="st-key-topnav"]) button p:first-child {
-        font-size: 18px !important;
+        font-size: 14px !important;
         margin-bottom: 2px !important;
       }
       .stHorizontalBlock:has([class*="st-key-topnav"]) button p:last-child {
         display: block !important;
-        font-size: 10px !important;
+        font-size: 9px !important;
+        line-height: 1.1 !important;
+        word-wrap: break-word !important;
       }
     }
     .hero {
