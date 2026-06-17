@@ -203,9 +203,9 @@ def page_home(con):
     }
     PAGE_FOR_STATUS = {
         "PENDING_APPROVAL": "승인",
-        "APPROVED":         "사진등록",
+        "APPROVED":         "승인",
         "REJECTED":         "승인",
-        "EXECUTING":        "사진등록",
+        "EXECUTING":        "승인",
         "DONE":             "산출물",
     }
 
