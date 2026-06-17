@@ -416,13 +416,23 @@ def page_dashboard(con: Client):
         _terminal_zones = set()
 
     # ── 테이블 행 생성 ────────────────────────────────────────────────────
+    from datetime import datetime
+    now = datetime.now()
+    current_time = now.strftime("%H:%M")
+
     row_parts = []
     total_cnt = 0
 
     if not reqs:
         row_parts.append('<tr><td colspan="12" style="padding:30px;color:#94a3b8;">해당 날짜에 등록된 요청이 없습니다.</td></tr>')
     else:
+        idx = 0
         for i, r in enumerate(reqs, 1):
+            t_from_raw = r.get("time_from", "")
+            # 금일 기준 시간이 지난 항목은 제외 (today 또는 cur_date == today일 때)
+            if cur_date == today and t_from_raw < current_time:
+                continue
+            idx += 1
             kind     = r.get("kind", KIND_IN)
             is_in    = kind == KIND_IN
             kind_cls = "kind-in" if is_in else "kind-out"
@@ -438,7 +448,6 @@ def page_dashboard(con: Client):
             gate_raw = "" if gate_raw == "선택" else gate_raw
             # 터미널 미사용 존이면 N/A 표기
             gate     = gate_raw if zone in _terminal_zones else "N/A"
-            t_from = r.get("time_from", "")
             sup    = r.get("worker_supervisor", "")
             guide  = r.get("worker_guide", "")
             mgr    = r.get("worker_manager", "")
@@ -446,7 +455,7 @@ def page_dashboard(con: Client):
             total_cnt += vcnt_int
 
             tds = (
-                f'<td>{i}</td>'
+                f'<td>{idx}</td>'
                 f'<td>{zone}</td>'
                 f'<td>{gate}</td>'
                 f'<td>{company}</td>'
@@ -454,7 +463,7 @@ def page_dashboard(con: Client):
                 f'<td>{vcnt}</td>'
                 f'<td><span class="{kind_cls}">{kind_lbl}</span> / {vton}</td>'
                 f'<td>{loading}</td>'
-                f'<td>{t_from}</td>'
+                f'<td>{t_from_raw}</td>'
                 f'<td>{sup}</td>'
                 f'<td>{guide}</td>'
                 f'<td>{mgr}</td>'
