@@ -24,8 +24,8 @@ RISK_LEVELS = [("LOW", "낮음"), ("MID", "보통"), ("HIGH", "높음")]
 VEHICLE_TONS = ["1톤", "1.4톤", "2.5톤", "3.5톤", "5톤", "8톤", "11톤", "15톤", "25톤", "직접입력"]
 GATE_ZONES = ["A존", "B존", "C존", "D존", "1GATE", "2GATE", "3GATE", "기타"]
 
-# 30분 단위 시간 슬롯 (06:00 ~ 18:00)
-TIME_SLOTS = [f"{h:02d}:{m:02d}" for h in range(6, 19) for m in (0, 30) if not (h == 18 and m == 30)]
+# 30분 단위 시간 슬롯 (05:00 ~ 18:00)
+TIME_SLOTS = [f"{h:02d}:{m:02d}" for h in range(5, 19) for m in (0, 30) if not (h == 18 and m == 30)]
 
 CHECK_ITEMS = [
     ("vehicle_plate", "차량 번호판 확인"),

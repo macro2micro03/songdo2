@@ -31,8 +31,57 @@ def page_project_select(con: Client):
     """Project selection screen — Step 1."""
     st.markdown("""
     <div style="text-align:center; padding:24px 0 16px 0;">
-      <div style="font-size:36px;">🏗️</div>
-      <h2 style="margin:8px 0 4px 0; color:var(--primary-700);">자재 반출입 관리 프로세스</h2>
+      <div style="display:inline-block;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 72" width="160" height="72">
+          <!-- 화물차 (오른쪽) -->
+          <!-- 차체 -->
+          <rect x="62" y="18" width="76" height="34" rx="3" fill="#1e3a8a"/>
+          <!-- 캡 -->
+          <rect x="118" y="24" width="20" height="22" rx="3" fill="#2563eb"/>
+          <!-- 캡 창문 -->
+          <rect x="121" y="27" width="14" height="11" rx="2" fill="#bfdbfe"/>
+          <!-- 화물 적재함 -->
+          <rect x="64" y="20" width="52" height="28" rx="2" fill="#3b82f6"/>
+          <!-- 화물 박스들 -->
+          <rect x="67" y="24" width="14" height="12" rx="1" fill="#fbbf24"/>
+          <rect x="83" y="24" width="14" height="12" rx="1" fill="#f59e0b"/>
+          <rect x="99" y="24" width="14" height="12" rx="1" fill="#fbbf24"/>
+          <!-- 바퀴 -->
+          <circle cx="82" cy="54" r="8" fill="#1e293b"/>
+          <circle cx="82" cy="54" r="4" fill="#94a3b8"/>
+          <circle cx="126" cy="54" r="8" fill="#1e293b"/>
+          <circle cx="126" cy="54" r="4" fill="#94a3b8"/>
+          <!-- 지면 -->
+          <line x1="0" y1="62" x2="160" y2="62" stroke="#cbd5e1" stroke-width="1.5"/>
+          <!-- 지게차 (왼쪽, 화물차 쪽으로 접근 중) -->
+          <!-- 차체 -->
+          <rect x="8" y="30" width="36" height="24" rx="3" fill="#f59e0b"/>
+          <!-- 운전석 -->
+          <rect x="28" y="22" width="16" height="16" rx="2" fill="#fbbf24"/>
+          <!-- 창문 -->
+          <rect x="30" y="24" width="12" height="9" rx="1" fill="#bfdbfe"/>
+          <!-- 마스트(포크 기둥) -->
+          <rect x="6" y="14" width="4" height="40" rx="1" fill="#d97706"/>
+          <!-- 포크 -->
+          <rect x="2" y="30" width="8" height="3" rx="1" fill="#92400e"/>
+          <rect x="2" y="36" width="8" height="3" rx="1" fill="#92400e"/>
+          <!-- 포크 위 박스 -->
+          <rect x="2" y="18" width="14" height="12" rx="1" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+          <!-- 바퀴 -->
+          <circle cx="18" cy="55" r="7" fill="#1e293b"/>
+          <circle cx="18" cy="55" r="3.5" fill="#94a3b8"/>
+          <circle cx="38" cy="55" r="7" fill="#1e293b"/>
+          <circle cx="38" cy="55" r="3.5" fill="#94a3b8"/>
+          <!-- 화살표 (접근 방향) -->
+          <path d="M50 40 L60 40" stroke="#ef4444" stroke-width="2.5" stroke-dasharray="3,2" marker-end="url(#arr)"/>
+          <defs>
+            <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L6,3 Z" fill="#ef4444"/>
+            </marker>
+          </defs>
+        </svg>
+      </div>
+      <h2 style="margin:8px 0 4px 0; color:var(--primary-700);">자재 반출입 스케줄 관리</h2>
       <p style="color:var(--text-muted); font-size:13px;">프로젝트를 선택하세요</p>
     </div>
     """, unsafe_allow_html=True)
