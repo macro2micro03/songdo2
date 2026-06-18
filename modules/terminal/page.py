@@ -16,24 +16,46 @@ def _occ_grid_html(terminals, occ, max_days: int = 0) -> str:
     for t in terminals:
         o = occ.get(t)
         if o:
-            bg, fg = "#fee2e2", "#b91c1c"
-            item_txt = (o.get('item') or '')[:8]
+            bg      = "#fef2f2"
+            border  = "2px solid #ef4444"
+            num_clr = "#b91c1c"
+            lbl_clr = "#dc2626"
+            item_txt = (o.get('item') or '')[:9]
             end_txt = ""
             if max_days and o.get('start'):
                 try:
                     end_d = _d.fromisoformat(o['start'][:10]) + timedelta(days=max_days)
-                    end_txt = f"<br>~{end_d.month}/{end_d.day}"
+                    end_txt = f"<div style='font-size:10px;color:#b91c1c;margin-top:2px;'>~{end_d.month}/{end_d.day}</div>"
                 except Exception:
                     pass
-            sub = f"{item_txt}{end_txt}"
+            inner = (
+                f"<div style='font-size:11px;font-weight:700;color:{num_clr};'>{t}</div>"
+                f"<div style='font-size:10px;color:{lbl_clr};margin-top:1px;word-break:break-all;'>{item_txt}</div>"
+                f"{end_txt}"
+            )
         else:
-            bg, fg, sub = "#dcfce7", "#15803d", "빈곳"
+            bg      = "#f0fdf4"
+            border  = "1.5px solid #86efac"
+            num_clr = "#15803d"
+            inner = (
+                f"<div style='font-size:11px;font-weight:700;color:{num_clr};'>{t}</div>"
+                f"<div style='font-size:10px;color:#22c55e;margin-top:2px;'>빈곳</div>"
+            )
         cells.append(
-            f"<div style='width:62px;background:{bg};color:{fg};border:1px solid #e2e8f0;"
-            f"border-radius:6px;padding:4px 2px;text-align:center;font-size:10px;line-height:1.2;'>"
-            f"<b>{t}</b><br><span style='font-size:9px'>{sub}</span></div>"
+            f"<div style='width:68px;min-height:58px;background:{bg};border:{border};"
+            f"border-radius:8px;padding:6px 4px;text-align:center;line-height:1.3;"
+            f"box-shadow:0 1px 3px rgba(0,0,0,0.08);'>{inner}</div>"
         )
-    return "<div style='display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;'>" + "".join(cells) + "</div>"
+    legend = (
+        "<div style='display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size:11px;color:#64748b;'>"
+        "<span style='display:inline-flex;align-items:center;gap:4px;'>"
+        "<span style='width:12px;height:12px;background:#fef2f2;border:2px solid #ef4444;border-radius:3px;display:inline-block;'></span>점유</span>"
+        "<span style='display:inline-flex;align-items:center;gap:4px;'>"
+        "<span style='width:12px;height:12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:3px;display:inline-block;'></span>빈곳</span>"
+        "</div>"
+    )
+    grid = "<div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;'>" + "".join(cells) + "</div>"
+    return legend + grid
 
 
 def _render_floor(rows, label, max_days, today, user_id, con):
