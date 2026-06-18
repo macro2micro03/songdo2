@@ -490,9 +490,9 @@ def page_dashboard(con: Client):
         # 합계 행
         row_parts.append(
             f'<tr class="total-row">'
-            f'<td colspan="4" style="text-align:right;padding-right:8px;">합 계</td>'
+            f'<td colspan="5" style="text-align:right;padding-right:8px;">합 계</td>'
             f'<td>{total_cnt}대</td>'
-            f'<td colspan="7"></td>'
+            f'<td colspan="6"></td>'
             f'</tr>'
         )
 
