@@ -7,6 +7,24 @@ from supabase import Client
 from modules.terminal.crud import (
     terminal_max_days, terminal_occupied, terminal_history, terminal_release,
 )
+from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, floor_image
+
+
+def _occ_grid_html(terminals, occ) -> str:
+    cells = []
+    for t in terminals:
+        o = occ.get(t)
+        if o:
+            bg, fg = "#fee2e2", "#b91c1c"
+            sub = f"{(o['item'] or '')[:6]}<br>~{o['end'][5:]}" if o.get('end') and len(o['end']) >= 7 else (o.get('item') or '')[:8]
+        else:
+            bg, fg, sub = "#dcfce7", "#15803d", "빈곳"
+        cells.append(
+            f"<div style='width:62px;background:{bg};color:{fg};border:1px solid #e2e8f0;"
+            f"border-radius:6px;padding:4px 2px;text-align:center;font-size:10px;line-height:1.2;'>"
+            f"<b>{t}</b><br><span style='font-size:9px'>{sub}</span></div>"
+        )
+    return "<div style='display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;'>" + "".join(cells) + "</div>"
 
 
 def _render_floor(rows, label, max_days, today, user_id, con):
@@ -70,6 +88,23 @@ def page_terminal(con: Client) -> None:
         f'<p style="margin:0;font-size:12px;color:var(--text-muted);">최대 보관 기준: {max_days}일</p></div>',
         unsafe_allow_html=True,
     )
+
+    # ── 도면 익스팬더 ────────────────────────────────────────────────────────
+    with st.expander("🗺 터미널 도면 (B1F · B2F)"):
+        _occ = occupancy_on(con, project_id, _date.today().isoformat())
+        st.caption(f"📅 오늘({_date.today().isoformat()}) 기준 점유 현황 (빨강=점유, 초록=빈곳)")
+
+        st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:6px 0 6px'>B1F</div>", unsafe_allow_html=True)
+        img_b1 = floor_image("b1")
+        if img_b1:
+            st.image(img_b1, use_container_width=True)
+        st.markdown(_occ_grid_html(terminals_b1(), _occ), unsafe_allow_html=True)
+
+        st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:10px 0 6px'>B2F</div>", unsafe_allow_html=True)
+        img_b2 = floor_image("b2")
+        if img_b2:
+            st.image(img_b2, use_container_width=True)
+        st.markdown(_occ_grid_html(terminals_b2(), _occ), unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["보관 현황", "반출 이력"])
 
