@@ -10,13 +10,22 @@ from modules.terminal.crud import (
 from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, floor_image
 
 
-def _occ_grid_html(terminals, occ) -> str:
+def _occ_grid_html(terminals, occ, max_days: int = 0) -> str:
+    from datetime import date as _d, timedelta
     cells = []
     for t in terminals:
         o = occ.get(t)
         if o:
             bg, fg = "#fee2e2", "#b91c1c"
-            sub = (o.get('item') or '')[:8]
+            item_txt = (o.get('item') or '')[:8]
+            end_txt = ""
+            if max_days and o.get('start'):
+                try:
+                    end_d = _d.fromisoformat(o['start'][:10]) + timedelta(days=max_days)
+                    end_txt = f"<br>~{end_d.month}/{end_d.day}"
+                except Exception:
+                    pass
+            sub = f"{item_txt}{end_txt}"
         else:
             bg, fg, sub = "#dcfce7", "#15803d", "빈곳"
         cells.append(
@@ -99,12 +108,12 @@ def page_terminal(con: Client) -> None:
             img = floor_image("b1")
             if img:
                 st.image(img, use_container_width=True)
-            st.markdown(_occ_grid_html(terminals_b1(), _occ), unsafe_allow_html=True)
+            st.markdown(_occ_grid_html(terminals_b1(), _occ, max_days), unsafe_allow_html=True)
         else:
             img = floor_image("b2")
             if img:
                 st.image(img, use_container_width=True)
-            st.markdown(_occ_grid_html(terminals_b2(), _occ), unsafe_allow_html=True)
+            st.markdown(_occ_grid_html(terminals_b2(), _occ, max_days), unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["보관 현황", "반출 이력"])
 

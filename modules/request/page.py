@@ -9,16 +9,25 @@ from config import KIND_IN, KIND_OUT, RISK_LEVELS
 from modules.request.crud import req_insert, req_get
 from modules.approval.crud import approvals_create_default
 from shared.helpers import req_display_id, phone_input
-from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on
+from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, default_days
 
 
-def _occ_grid_html(terminals, occ, selected=None) -> str:
+def _occ_grid_html(terminals, occ, selected=None, max_days: int = 0) -> str:
+    from datetime import date as _d, timedelta
     cells = []
     for t in terminals:
         o = occ.get(t)
         if o:
             bg, fg = "#fee2e2", "#b91c1c"
-            sub = (o.get('item') or '')[:8]
+            item_txt = (o.get('item') or '')[:8]
+            end_txt = ""
+            if max_days and o.get('start'):
+                try:
+                    end_d = _d.fromisoformat(o['start'][:10]) + timedelta(days=max_days)
+                    end_txt = f"<br>~{end_d.month}/{end_d.day}"
+                except Exception:
+                    pass
+            sub = f"{item_txt}{end_txt}"
         else:
             bg, fg, sub = "#dcfce7", "#15803d", "빈곳"
         border = "2px solid #2563eb" if t == selected else "1px solid #e2e8f0"
@@ -69,11 +78,12 @@ def page_request(con: Client):
         _project_id = st.session_state.get("PROJECT_ID", "")
         _occ_date = str(date_val)
         _occ = occupancy_on(con, _project_id, _occ_date)
+        _max_days = default_days(con)
         st.caption(f"📅 {_occ_date} 기준 점유 현황 (빨강=점유, 초록=빈곳)")
         st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:6px 0 6px'>B1F</div>", unsafe_allow_html=True)
-        st.markdown(_occ_grid_html(terminals_b1(), _occ), unsafe_allow_html=True)
+        st.markdown(_occ_grid_html(terminals_b1(), _occ, max_days=_max_days), unsafe_allow_html=True)
         st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:10px 0 6px'>B2F</div>", unsafe_allow_html=True)
-        st.markdown(_occ_grid_html(terminals_b2(), _occ), unsafe_allow_html=True)
+        st.markdown(_occ_grid_html(terminals_b2(), _occ, max_days=_max_days), unsafe_allow_html=True)
 
     c1, _ = st.columns(2)
     with c1:
