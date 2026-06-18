@@ -326,18 +326,18 @@ def _build_excel(reqs: list, site_name: str, date_label: str, terminal_zones: se
 
     # ── 합계 행 ───────────────────────────────────────────────────────────
     total_row = len(reqs) + 5
-    ws.merge_cells(f"A{total_row}:D{total_row}")
+    ws.merge_cells(f"A{total_row}:E{total_row}")
     ws[f"A{total_row}"].value = "합 계"
     ws[f"A{total_row}"].font  = total_font
     ws[f"A{total_row}"].fill  = total_fill
-    ws[f"A{total_row}"].alignment = Alignment(horizontal="right", vertical="center")
+    ws[f"A{total_row}"].alignment = center
     ws[f"A{total_row}"].border = border_all
-    ws[f"E{total_row}"].value = f"{total_cnt}대"
-    ws[f"E{total_row}"].font  = total_font
-    ws[f"E{total_row}"].fill  = total_fill
-    ws[f"E{total_row}"].alignment = center
-    ws[f"E{total_row}"].border = border_all
-    for col_idx in range(6, 13):
+    ws[f"F{total_row}"].value = f"{total_cnt}대"
+    ws[f"F{total_row}"].font  = total_font
+    ws[f"F{total_row}"].fill  = total_fill
+    ws[f"F{total_row}"].alignment = center
+    ws[f"F{total_row}"].border = border_all
+    for col_idx in range(7, 13):
         cell = ws.cell(row=total_row, column=col_idx)
         cell.fill   = total_fill
         cell.border = border_all
@@ -490,7 +490,7 @@ def page_dashboard(con: Client):
         # 합계 행
         row_parts.append(
             f'<tr class="total-row">'
-            f'<td colspan="5" style="text-align:right;padding-right:8px;">합 계</td>'
+            f'<td colspan="5" style="text-align:center;padding-right:8px;">합 계</td>'
             f'<td>{total_cnt}대</td>'
             f'<td colspan="6"></td>'
             f'</tr>'
