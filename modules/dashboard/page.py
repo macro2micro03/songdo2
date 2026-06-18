@@ -280,6 +280,8 @@ def _build_excel(reqs: list, site_name: str, date_label: str, terminal_zones: se
         cell.fill  = hdr_fill
         cell.alignment = center
         cell.border = border_all
+        # 병합 하단 셀(4행)에도 테두리 적용 — 세로선 누락 방지
+        ws[f"{col_letter}4"].border = border_all
 
     ws.row_dimensions[3].height = 22
     ws.row_dimensions[4].height = 16
