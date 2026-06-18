@@ -345,7 +345,7 @@ def _build_excel(reqs: list, site_name: str, date_label: str, terminal_zones: se
 
     # ── 열 너비 ───────────────────────────────────────────────────────────
     from openpyxl.utils import get_column_letter
-    col_widths = [5, 8, 14, 14, 7, 14, 12, 10, 8, 12, 10, 10]
+    col_widths = [5, 8, 14, 14, 35, 10, 12, 14, 8, 12, 10, 10]
     for col_idx, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(col_idx)].width = w
 
