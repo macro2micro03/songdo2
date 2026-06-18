@@ -270,6 +270,11 @@ def auth_reset() -> None:
     st.session_state["USER_ROLE"]  = "협력사"
     st.session_state["ACTIVE_PAGE"] = "홈"
     st.session_state.pop("SUPABASE_SESSION", None)
+    # URL 토큰 삭제
+    try:
+        del st.query_params["_s"]
+    except Exception:
+        pass
     # localStorage에서 로그인 정보 삭제
     clear_auth_from_storage()
 
@@ -305,7 +310,64 @@ def current_project_id() -> str:
     return st.session_state.get("PROJECT_ID", "")
 
 
-# ── localStorage 지속성 ────────────────────────────────────────
+# ── URL 토큰 기반 세션 지속성 (HMAC 서명) ─────────────────────
+import hmac as _hmac, hashlib as _hashlib, base64 as _base64, time as _time, json as _json
+
+_TOKEN_TTL = 7 * 24 * 3600  # 7일
+
+
+def _token_secret() -> str:
+    return str(st.secrets.get("SESSION_SECRET", "songdo2-ino-gate-2024"))
+
+
+def make_session_token(username: str, project_id: str) -> str:
+    payload = _json.dumps({"u": username, "p": project_id, "t": int(_time.time())})
+    b64 = _base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+    sig = _hmac.new(_token_secret().encode(), b64.encode(), _hashlib.sha256).hexdigest()[:16]
+    return f"{b64}.{sig}"
+
+
+def verify_session_token(token: str) -> Optional[Dict]:
+    try:
+        b64, sig = token.rsplit(".", 1)
+        expected = _hmac.new(_token_secret().encode(), b64.encode(), _hashlib.sha256).hexdigest()[:16]
+        if not _hmac.compare_digest(sig, expected):
+            return None
+        pad = (4 - len(b64) % 4) % 4
+        payload = _json.loads(_base64.urlsafe_b64decode(b64 + "=" * pad))
+        if _time.time() - payload.get("t", 0) > _TOKEN_TTL:
+            return None
+        return payload
+    except Exception:
+        return None
+
+
+def restore_session_from_token(sb: Client, payload: Dict) -> bool:
+    """토큰 payload로 DB 사용자 조회 후 세션 복원."""
+    username   = payload.get("u", "")
+    project_id = payload.get("p", "")
+    if not username or not project_id:
+        return False
+    res = (sb.table("profiles").select("*")
+           .eq("project_id", project_id)
+           .eq("username", username.strip())
+           .limit(1).execute())
+    if not res.data:
+        return False
+    user = res.data[0]
+    is_sysadmin = bool(user.get("is_sysadmin"))
+    st.session_state["AUTH_OK"]      = True
+    st.session_state["IS_ADMIN"]     = bool(user.get("is_admin")) or is_sysadmin
+    st.session_state["IS_SYSADMIN"]  = is_sysadmin
+    st.session_state["USER_NAME"]    = user.get("name", "")
+    st.session_state["USER_ROLE"]    = user.get("role", "협력사")
+    st.session_state["USER_COMPANY"] = user.get("company_name", "") or ""
+    st.session_state["USER_ID"]      = user.get("username", "")
+    st.session_state["PROJECT_ID"]   = project_id
+    return True
+
+
+# ── localStorage 지속성 (레거시 — 현재 미사용) ──────────────────
 def persist_auth_to_storage() -> None:
     """현재 로그인 정보를 localStorage에 저장하는 JavaScript 실행"""
     import json, base64

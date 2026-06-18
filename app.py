@@ -461,24 +461,19 @@ def main():
     if "ACTIVE_PAGE" not in st.session_state:
         st.session_state["ACTIVE_PAGE"] = "홈"
 
-    # ── localStorage에서 로그인 정보 자동 복구 ──
+    # ── URL 토큰으로 로그인 자동 복구 (새로고침 시) ──
     if not st.session_state.get("AUTH_OK"):
-        st.markdown("""
-        <script>
-        (function() {
-          const auth = localStorage.getItem('_app_auth');
-          if (auth) {
-            try {
-              const data = JSON.parse(atob(auth));
-              // localStorage 데이터 감지됨
-              window.__app_auth_restore = data;
-            } catch (e) {
-              localStorage.removeItem('_app_auth');
-            }
-          }
-        })();
-        </script>
-        """, unsafe_allow_html=True)
+        _tok = st.query_params.get("_s", "")
+        if _tok:
+            from auth.session import verify_session_token, restore_session_from_token
+            _payload = verify_session_token(_tok)
+            if _payload:
+                restore_session_from_token(con, _payload)
+            else:
+                try:
+                    del st.query_params["_s"]
+                except Exception:
+                    pass
 
     # ── Step 1: Project selection (단일 프로젝트면 자동 선택) ──
     if not session_has_project():
