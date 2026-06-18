@@ -182,7 +182,10 @@ def _page_login_form(con: Client, project_id: str, project_name: str) -> None:
                 else:
                     ok, msg = auth_login(con, username, password)
                     if ok:
-                        # 성공: placeholder DOM 비우고 rerun → 잔상 없음
+                        # 성공: localStorage에 저장 후 rerun
+                        from auth.session import persist_auth_to_storage
+                        persist_auth_to_storage()
+                        # placeholder DOM 비우고 rerun → 잔상 없음
                         _page_area.empty()
                         st.rerun()
                     st.error(msg)

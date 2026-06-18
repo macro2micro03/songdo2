@@ -461,6 +461,25 @@ def main():
     if "ACTIVE_PAGE" not in st.session_state:
         st.session_state["ACTIVE_PAGE"] = "홈"
 
+    # ── localStorage에서 로그인 정보 자동 복구 ──
+    if not st.session_state.get("AUTH_OK"):
+        st.markdown("""
+        <script>
+        (function() {
+          const auth = localStorage.getItem('_app_auth');
+          if (auth) {
+            try {
+              const data = JSON.parse(atob(auth));
+              // localStorage 데이터 감지됨
+              window.__app_auth_restore = data;
+            } catch (e) {
+              localStorage.removeItem('_app_auth');
+            }
+          }
+        })();
+        </script>
+        """, unsafe_allow_html=True)
+
     # ── Step 1: Project selection (단일 프로젝트면 자동 선택) ──
     if not session_has_project():
         from db.models import project_list

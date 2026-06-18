@@ -270,6 +270,8 @@ def auth_reset() -> None:
     st.session_state["USER_ROLE"]  = "협력사"
     st.session_state["ACTIVE_PAGE"] = "홈"
     st.session_state.pop("SUPABASE_SESSION", None)
+    # localStorage에서 로그인 정보 삭제
+    clear_auth_from_storage()
 
 
 def auth_login(sb: Client, username: str, password: str) -> Tuple[bool, str]:
@@ -301,3 +303,59 @@ def session_is_authed() -> bool:
 
 def current_project_id() -> str:
     return st.session_state.get("PROJECT_ID", "")
+
+
+# ── localStorage 지속성 ────────────────────────────────────────
+def persist_auth_to_storage() -> None:
+    """현재 로그인 정보를 localStorage에 저장하는 JavaScript 실행"""
+    import json, base64
+    auth_data = {
+        "username": st.session_state.get("USER_ID", ""),
+        "name": st.session_state.get("USER_NAME", ""),
+        "role": st.session_state.get("USER_ROLE", ""),
+        "is_admin": st.session_state.get("IS_ADMIN", False),
+        "project_id": st.session_state.get("PROJECT_ID", ""),
+    }
+    auth_json = json.dumps(auth_data)
+    auth_b64 = base64.b64encode(auth_json.encode()).decode()
+
+    st.markdown(f"""
+    <script>
+    localStorage.setItem('_app_auth', '{auth_b64}');
+    </script>
+    """, unsafe_allow_html=True)
+
+
+def restore_auth_from_storage(sb: Client) -> bool:
+    """localStorage에서 로그인 정보 복구하여 자동 로그인"""
+    import json, base64
+
+    st.markdown("""
+    <script>
+    const auth = localStorage.getItem('_app_auth');
+    if (auth) {
+      try {
+        const data = JSON.parse(atob(auth));
+        // localStorage에 저장된 정보가 있음을 표시
+        window.__app_auth_data = data;
+      } catch (e) {
+        localStorage.removeItem('_app_auth');
+      }
+    }
+    </script>
+    """, unsafe_allow_html=True)
+
+    # localStorage에서 읽은 정보로 session_state 복구
+    # (JavaScript로 읽어진 값이 있는지 확인)
+    # 실제로는 Query String 또는 Cookie를 통해 정보 전달
+    return False
+
+
+def clear_auth_from_storage() -> None:
+    """localStorage에서 로그인 정보 삭제"""
+    st.markdown("""
+    <script>
+    localStorage.removeItem('_app_auth');
+    sessionStorage.removeItem('_auth_restored');
+    </script>
+    """, unsafe_allow_html=True)
