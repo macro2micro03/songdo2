@@ -469,6 +469,10 @@ def main():
             _payload = verify_session_token(_tok)
             if _payload:
                 restore_session_from_token(con, _payload)
+                # 페이지도 복원
+                _saved_page = st.query_params.get("_p", "홈")
+                if _saved_page in PAGE_ROUTER or _saved_page == "홈":
+                    st.session_state["ACTIVE_PAGE"] = _saved_page
             else:
                 try:
                     del st.query_params["_s"]
@@ -499,6 +503,8 @@ def main():
     render_topnav(con)
 
     active_page = st.session_state.get("ACTIVE_PAGE", "홈")
+    # 현재 페이지를 URL에 저장 (새로고침 시 복원용)
+    st.query_params["_p"] = active_page
     if active_page == "홈":
         page_home(con)
     elif active_page in PAGE_ROUTER:
