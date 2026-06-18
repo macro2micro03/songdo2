@@ -39,7 +39,7 @@ def _occ_grid_html(terminals, occ, max_days: int = 0) -> str:
 def _render_floor(rows, label, max_days, today, user_id, con):
     st.markdown(
         f'<div style="font-weight:700;font-size:13px;color:#1e3a8a;'
-        f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin-bottom:6px;">'
+        f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin-bottom:14px;">'
         f'{label} ({len(rows)}건)</div>',
         unsafe_allow_html=True,
     )
@@ -143,7 +143,7 @@ def page_terminal(con: Client) -> None:
             def _render_history(rows, label):
                 st.markdown(
                     f'<div style="font-weight:700;font-size:13px;color:#1e3a8a;'
-                    f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin-bottom:6px;">'
+                    f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin-bottom:14px;">'
                     f'{label}</div>',
                     unsafe_allow_html=True,
                 )
