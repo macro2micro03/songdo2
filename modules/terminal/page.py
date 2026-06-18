@@ -16,7 +16,7 @@ def _occ_grid_html(terminals, occ) -> str:
         o = occ.get(t)
         if o:
             bg, fg = "#fee2e2", "#b91c1c"
-            sub = f"{(o['item'] or '')[:6]}<br>~{o['end'][5:]}" if o.get('end') and len(o['end']) >= 7 else (o.get('item') or '')[:8]
+            sub = (o.get('item') or '')[:8]
         else:
             bg, fg, sub = "#dcfce7", "#15803d", "빈곳"
         cells.append(

@@ -18,7 +18,7 @@ def _occ_grid_html(terminals, occ, selected=None) -> str:
         o = occ.get(t)
         if o:
             bg, fg = "#fee2e2", "#b91c1c"
-            sub = f"{(o['item'] or '')[:6]}<br>~{o['end'][5:]}"
+            sub = (o.get('item') or '')[:8]
         else:
             bg, fg, sub = "#dcfce7", "#15803d", "빈곳"
         border = "2px solid #2563eb" if t == selected else "1px solid #e2e8f0"
