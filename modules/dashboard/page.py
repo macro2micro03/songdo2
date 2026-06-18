@@ -229,7 +229,7 @@ def _build_excel(reqs: list, site_name: str, date_label: str, terminal_zones: se
     ws.title = "반입반출현황"
 
     # ── 스타일 정의 ───────────────────────────────────────────────────────
-    thin = Side(style="thin", color="CBD5E1")
+    thin = Side(style="thin", color="404040")
     thick = Side(style="medium", color="1E3A8A")
     border_all  = Border(left=thin, right=thin, top=thin, bottom=thin)
     border_thick = Border(left=thick, right=thick, top=thick, bottom=thick)
