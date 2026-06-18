@@ -12,31 +12,33 @@ from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, floor_
 
 def _occ_grid_html(terminals, occ, max_days: int = 0) -> str:
     from datetime import date as _d, timedelta
+    today = _d.today()
     cells = []
     for t in terminals:
         o = occ.get(t)
         if o:
-            bg      = "#fef2f2"
-            border  = "2px solid #ef4444"
-            num_clr = "#b91c1c"
-            lbl_clr = "#dc2626"
             item_txt = (o.get('item') or '')[:9]
             end_txt = ""
+            overdue = False
             if max_days and o.get('start'):
                 try:
-                    end_d = _d.fromisoformat(o['start'][:10]) + timedelta(days=max_days)
-                    end_txt = f"<div style='font-size:10px;color:#b91c1c;margin-top:2px;'>~{end_d.month}/{end_d.day}</div>"
+                    start_d = _d.fromisoformat(o['start'][:10])
+                    end_d   = start_d + timedelta(days=max_days)
+                    overdue = today > end_d
+                    end_txt = f"<div style='font-size:10px;margin-top:2px;'>~{end_d.month}/{end_d.day}</div>"
                 except Exception:
                     pass
+            if overdue:
+                bg, border, num_clr, lbl_clr = "#fef2f2", "2px solid #ef4444", "#b91c1c", "#dc2626"
+            else:
+                bg, border, num_clr, lbl_clr = "#fefce8", "2px solid #fcd34d", "#92400e", "#a16207"
             inner = (
                 f"<div style='font-size:11px;font-weight:700;color:{num_clr};'>{t}</div>"
                 f"<div style='font-size:10px;color:{lbl_clr};margin-top:1px;word-break:break-all;'>{item_txt}</div>"
-                f"{end_txt}"
+                f"<div style='font-size:10px;color:{lbl_clr};'>{end_txt}</div>"
             )
         else:
-            bg      = "#f0fdf4"
-            border  = "1.5px solid #86efac"
-            num_clr = "#15803d"
+            bg, border, num_clr = "#f0fdf4", "1.5px solid #86efac", "#15803d"
             inner = (
                 f"<div style='font-size:11px;font-weight:700;color:{num_clr};'>{t}</div>"
                 f"<div style='font-size:10px;color:#22c55e;margin-top:2px;'>빈곳</div>"
@@ -49,7 +51,9 @@ def _occ_grid_html(terminals, occ, max_days: int = 0) -> str:
     legend = (
         "<div style='display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size:11px;color:#64748b;'>"
         "<span style='display:inline-flex;align-items:center;gap:4px;'>"
-        "<span style='width:12px;height:12px;background:#fef2f2;border:2px solid #ef4444;border-radius:3px;display:inline-block;'></span>점유</span>"
+        "<span style='width:12px;height:12px;background:#fef2f2;border:2px solid #ef4444;border-radius:3px;display:inline-block;'></span>기한초과</span>"
+        "<span style='display:inline-flex;align-items:center;gap:4px;'>"
+        "<span style='width:12px;height:12px;background:#fefce8;border:2px solid #fcd34d;border-radius:3px;display:inline-block;'></span>점유중</span>"
         "<span style='display:inline-flex;align-items:center;gap:4px;'>"
         "<span style='width:12px;height:12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:3px;display:inline-block;'></span>빈곳</span>"
         "</div>"
