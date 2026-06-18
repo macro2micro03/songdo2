@@ -9,6 +9,52 @@ from modules.terminal.crud import (
 )
 
 
+def _render_floor(rows, label, max_days, today, user_id, con):
+    st.markdown(
+        f'<div style="font-weight:700;font-size:13px;color:#1e3a8a;'
+        f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin-bottom:6px;">'
+        f'{label} ({len(rows)}건)</div>',
+        unsafe_allow_html=True,
+    )
+    if not rows:
+        st.markdown(
+            '<div style="font-size:12px;color:#94a3b8;padding:4px 0 10px 0;">보관 자재 없음</div>',
+            unsafe_allow_html=True,
+        )
+        return
+    for r in rows:
+        rid   = r["id"]
+        term  = r["terminal"]
+        co    = r.get("company_name", "")
+        item  = r.get("item_name", "")
+        d_str = (r.get("date") or "")[:10]
+        try:
+            elapsed = (today - _date.fromisoformat(d_str)).days
+        except Exception:
+            elapsed = 0
+        over  = elapsed > max_days
+        d_clr = "#dc2626" if over else "#1d4ed8"
+        warn  = " ⚠️ 기준 초과" if over else ""
+        with st.container(key=f"term_occ_{rid}"):
+            c1, c2 = st.columns([8, 2])
+            with c1:
+                st.markdown(
+                    f'<div style="padding:5px 0;">'
+                    f'<strong style="font-size:14px;">{term}</strong>'
+                    f'&nbsp;·&nbsp;{co}&nbsp;·&nbsp;{item}<br>'
+                    f'<span style="font-size:12px;color:#64748b;">반입일: {d_str}</span>'
+                    f'&nbsp;&nbsp;<span style="font-size:12px;color:{d_clr};'
+                    f'font-weight:600;">{elapsed}일 경과{warn}</span></div>',
+                    unsafe_allow_html=True,
+                )
+            with c2:
+                if st.button("반출 완료", key=f"rel_{rid}",
+                             type="primary", use_container_width=True):
+                    terminal_release(con, rid, user_id)
+                    st.toast(f"✅ {term} 반출 완료")
+                    st.rerun()
+
+
 def page_terminal(con: Client) -> None:
     role       = st.session_state.get("USER_ROLE", "")
     is_admin   = st.session_state.get("IS_ADMIN", False)
@@ -16,10 +62,8 @@ def page_terminal(con: Client) -> None:
     user_id    = st.session_state.get("USER_ID", "")
     project_id = st.session_state.get("PROJECT_ID", "")
 
-    # 협력사는 본인 업체만 / 관리자·삼성물산은 전체
     filter_co = None if (is_admin or role != "협력사") else company
-
-    max_days = terminal_max_days(con, project_id)
+    max_days  = terminal_max_days(con, project_id)
 
     st.markdown(
         '<div class="card"><h3 style="margin:0 0 4px 0;">📦 터미널 보관·반출 관리</h3>'
@@ -32,42 +76,16 @@ def page_terminal(con: Client) -> None:
     # ── 보관 현황 ────────────────────────────────────────────────────────────
     with tab1:
         occupied = terminal_occupied(con, project_id, filter_co)
+        today    = _date.today()
+        b1 = [r for r in occupied if r["terminal"].startswith("B1-")]
+        b2 = [r for r in occupied if r["terminal"].startswith("B2-")]
+
         if not occupied:
             st.info("현재 보관 중인 자재가 없습니다.")
         else:
-            today = _date.today()
-            for r in occupied:
-                rid    = r["id"]
-                term   = r["terminal"]
-                co     = r.get("company_name", "")
-                item   = r.get("item_name", "")
-                d_str  = (r.get("date") or "")[:10]
-                try:
-                    elapsed = (today - _date.fromisoformat(d_str)).days
-                except Exception:
-                    elapsed = 0
-                over  = elapsed > max_days
-                d_clr = "#dc2626" if over else "#1d4ed8"
-                warn  = " ⚠️ 기준 초과" if over else ""
-
-                with st.container(key=f"term_occ_{rid}"):
-                    c1, c2 = st.columns([8, 2])
-                    with c1:
-                        st.markdown(
-                            f'<div style="padding:6px 0;">'
-                            f'<strong style="font-size:14px;">{term}</strong>'
-                            f'&nbsp;·&nbsp;{co}&nbsp;·&nbsp;{item}<br>'
-                            f'<span style="font-size:12px;color:#64748b;">반입일: {d_str}</span>'
-                            f'&nbsp;&nbsp;<span style="font-size:12px;color:{d_clr};'
-                            f'font-weight:600;">{elapsed}일 경과{warn}</span></div>',
-                            unsafe_allow_html=True,
-                        )
-                    with c2:
-                        if st.button("반출 완료", key=f"rel_{rid}",
-                                     type="primary", use_container_width=True):
-                            terminal_release(con, rid, user_id)
-                            st.toast(f"✅ {term} 반출 등록 완료")
-                            st.rerun()
+            _render_floor(b1, "B1F", max_days, today, user_id, con)
+            st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
+            _render_floor(b2, "B2F", max_days, today, user_id, con)
 
     # ── 반출 이력 ────────────────────────────────────────────────────────────
     with tab2:
@@ -75,19 +93,39 @@ def page_terminal(con: Client) -> None:
         if not history:
             st.info("반출 이력이 없습니다.")
         else:
-            for r in history:
-                term   = r["terminal"]
-                co     = r.get("company_name", "")
-                item   = r.get("item_name", "")
-                d_str  = (r.get("date") or "")[:10]
-                rel_at = (r.get("store_released_at") or "")[:16].replace("T", " ")
-                rel_by = r.get("store_released_by") or ""
-                by_txt = f" ({rel_by})" if rel_by else ""
+            b1h = [r for r in history if r["terminal"].startswith("B1-")]
+            b2h = [r for r in history if r["terminal"].startswith("B2-")]
+
+            def _render_history(rows, label):
                 st.markdown(
-                    f'<div style="padding:6px 0;border-bottom:1px solid #e2e8f0;">'
-                    f'<strong>{term}</strong> · {co} · {item}<br>'
-                    f'<span style="font-size:12px;color:#64748b;">'
-                    f'반입일: {d_str}&nbsp;|&nbsp;반출: {rel_at}{by_txt}'
-                    f'</span></div>',
+                    f'<div style="font-weight:700;font-size:13px;color:#1e3a8a;'
+                    f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin-bottom:6px;">'
+                    f'{label}</div>',
                     unsafe_allow_html=True,
                 )
+                if not rows:
+                    st.markdown(
+                        '<div style="font-size:12px;color:#94a3b8;padding:4px 0 10px 0;">이력 없음</div>',
+                        unsafe_allow_html=True,
+                    )
+                    return
+                for r in rows:
+                    term   = r["terminal"]
+                    co     = r.get("company_name", "")
+                    item   = r.get("item_name", "")
+                    d_str  = (r.get("date") or "")[:10]
+                    rel_at = (r.get("store_released_at") or "")[:16].replace("T", " ")
+                    rel_by = r.get("store_released_by") or ""
+                    by_txt = f" ({rel_by})" if rel_by else ""
+                    st.markdown(
+                        f'<div style="padding:6px 0;border-bottom:1px solid #e2e8f0;">'
+                        f'<strong>{term}</strong> · {co} · {item}<br>'
+                        f'<span style="font-size:12px;color:#64748b;">'
+                        f'반입일: {d_str}&nbsp;|&nbsp;반출: {rel_at}{by_txt}'
+                        f'</span></div>',
+                        unsafe_allow_html=True,
+                    )
+
+            _render_history(b1h, "B1F")
+            st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
+            _render_history(b2h, "B2F")
