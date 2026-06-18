@@ -158,7 +158,7 @@ def _eff_terminal(r: Dict[str, Any]) -> Optional[str]:
 
 
 def _eff_period(r: Dict[str, Any], ddays: int) -> Optional[tuple]:
-    """유효 점유 기간: store_start~store_end 있으면 그것, 없으면 반입일~+기본일."""
+    """유효 점유 기간: store_start~store_end 있으면 그것, 없으면 반입일~반출 등록 전까지 무기한."""
     s = (r.get("store_start") or "")[:10]
     e = (r.get("store_end") or "")[:10]
     if s and e:
@@ -166,7 +166,7 @@ def _eff_period(r: Dict[str, Any], ddays: int) -> Optional[tuple]:
     d = (r.get("date") or r.get("created_at") or "")[:10]
     if len(d) < 10:
         return None
-    return d, add_days(d, ddays)
+    return d, "9999-12-31"  # 반출 등록(store_released=1) 전까지 무기한 점유
 
 
 def _storage_rows(con: Client, project_id: str) -> List[Dict[str, Any]]:

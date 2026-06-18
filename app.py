@@ -23,6 +23,7 @@ from core.nav import render_topnav
 from core.pwa import inject_pwa
 from core.sidebar import render_sidebar
 from auth.session import session_has_project, session_is_authed
+from db.models import modules_ensure_defaults
 from auth.login import page_project_select, page_login
 from modules.approval.page import page_approval
 from modules.execution.page import page_execute
@@ -32,6 +33,7 @@ from modules.admin.page import page_admin
 from modules.schedule.page import page_schedule
 from modules.profile.page import page_profile
 from modules.dashboard.page import page_dashboard
+from modules.terminal.page import page_terminal
 from shared.timing import clear_timings, render_panel, measure
 
 
@@ -40,6 +42,7 @@ PAGE_ROUTER = {
     "대시보드":  page_dashboard,
     "신청":      page_schedule,
     "승인":      page_approval,
+    "터미널":    page_terminal,
     "사진등록":  page_execute,
     "계획서":    page_outputs,
     "산출물":    page_outputs,
@@ -490,6 +493,11 @@ def main():
             page_project_select(con)
             render_panel()
             return
+
+    # ── 신규 모듈 자동 추가 (기존 프로젝트 대상, 세션당 1회) ──
+    if st.session_state.get("PROJECT_ID") and not st.session_state.get("_modules_ensured"):
+        modules_ensure_defaults(con, st.session_state["PROJECT_ID"])
+        st.session_state["_modules_ensured"] = True
 
     # ── Step 2: Authentication ──
     if not session_is_authed():
