@@ -94,17 +94,17 @@ def page_terminal(con: Client) -> None:
         _occ = occupancy_on(con, project_id, _date.today().isoformat())
         st.caption(f"📅 오늘({_date.today().isoformat()}) 기준 점유 현황 (빨강=점유, 초록=빈곳)")
 
-        st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:6px 0 6px'>B1F</div>", unsafe_allow_html=True)
-        img_b1 = floor_image("b1")
-        if img_b1:
-            st.image(img_b1, use_container_width=True)
-        st.markdown(_occ_grid_html(terminals_b1(), _occ), unsafe_allow_html=True)
-
-        st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:10px 0 6px'>B2F</div>", unsafe_allow_html=True)
-        img_b2 = floor_image("b2")
-        if img_b2:
-            st.image(img_b2, use_container_width=True)
-        st.markdown(_occ_grid_html(terminals_b2(), _occ), unsafe_allow_html=True)
+        floor_sel = st.radio("층 선택", ["B1F", "B2F"], horizontal=True, key="term_floor_sel")
+        if floor_sel == "B1F":
+            img = floor_image("b1")
+            if img:
+                st.image(img, use_container_width=True)
+            st.markdown(_occ_grid_html(terminals_b1(), _occ), unsafe_allow_html=True)
+        else:
+            img = floor_image("b2")
+            if img:
+                st.image(img, use_container_width=True)
+            st.markdown(_occ_grid_html(terminals_b2(), _occ), unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["보관 현황", "반출 이력"])
 
