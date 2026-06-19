@@ -195,7 +195,7 @@ def page_home(con):
     all_reqs = req_list(con, limit=100)
     today = date.today().isoformat()
     active_reqs = [r for r in all_reqs if r.get("status") not in ("DONE",) and (not r.get("date") or r.get("date") >= today)]
-    active_reqs = sorted(active_reqs, key=lambda r: r.get("created_at", ""), reverse=True)
+    active_reqs = sorted(active_reqs, key=lambda r: (r.get("date", ""), r.get("time_from", "")))
 
     STATUS_LABEL = {
         "PENDING_APPROVAL": ("대기중", "status-pending"),
