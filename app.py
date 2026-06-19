@@ -228,7 +228,15 @@ def page_home(con):
         )
 
     def _render_req_list(reqs):
+        _prev_zone = None
         for r in reqs[:20]:
+            _cur_zone = r.get("booking_zone") or ""
+            if _prev_zone is not None and _cur_zone != _prev_zone:
+                st.markdown(
+                    '<hr style="border:none;border-top:1px dashed #cbd5e1;margin:6px 0;">',
+                    unsafe_allow_html=True,
+                )
+            _prev_zone = _cur_zone
             rid = r["id"]
             kind = "반입" if r.get("kind") == KIND_IN else "반출"
             status = r.get("status", "PENDING_APPROVAL")
