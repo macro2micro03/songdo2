@@ -1170,9 +1170,9 @@ def page_schedule(con):
                 _avail = [z for z in _zone_options
                           if z not in _occupied_terminals or z == _match]
                 _occ_cnt = len(_zone_options) - len(_avail)
-                _opts = ["선택"] + _avail
+                _opts = ["미사용"] + _avail
                 _idx  = _opts.index(_match) if _match in _opts else 0
-                _label = f"터미널 * ({_occ_cnt}개 점유중)" if _occ_cnt else "터미널 *"
+                _label = f"터미널 ({_occ_cnt}개 점유중)" if _occ_cnt else "터미널"
                 return st.selectbox(_label, options=_opts, index=_idx,
                                     key=f"terminal_sel{key_sfx}" if key_sfx else None)
 
@@ -1300,7 +1300,7 @@ def page_schedule(con):
             if not loading_method.strip():                    save_errors.append("상·하차 방식")
             # 편집 시: 기존 레코드 kind 기준 — 반입만 터미널 필수, 반출은 생략 가능
             _edit_is_in = (ref.get("kind") == KIND_IN) if "ref" in locals() else True
-            if _use_terminal and _edit_is_in and gate == "선택":  save_errors.append("터미널")
+            # 터미널 미사용 허용 — 필수 검사 없음
             if not worker_supervisor.strip():  save_errors.append("작업지휘자")
             if not worker_guide.strip():       save_errors.append("유도원")
             if not worker_manager.strip():     save_errors.append("담당자")
@@ -1419,7 +1419,7 @@ def page_schedule(con):
             if not company_name.strip():                      errors.append("업체명")
             if not item_name.strip():                         errors.append("자재종류")
             if not loading_method.strip():                    errors.append("상·하차 방식")
-            if _use_terminal and new_kind == "반입" and gate == "선택":  errors.append("터미널")
+            # 터미널 미사용 허용 — 필수 검사 없음
             if not vehicle_ton.strip():        errors.append("차량 규격")
             if not worker_supervisor.strip():  errors.append("작업지휘자")
             if not worker_guide.strip():       errors.append("유도원")
