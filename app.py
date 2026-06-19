@@ -216,77 +216,100 @@ def page_home(con):
         st.markdown('<div class="card" style="text-align:center;color:var(--text-muted);font-size:13px;">진행 중인 요청이 없습니다.</div>', unsafe_allow_html=True)
         return
 
-    for r in active_reqs[:20]:
-        rid = r["id"]
-        kind = "반입" if r.get("kind") == KIND_IN else "반출"
-        status = r.get("status", "PENDING_APPROVAL")
-        slabel, _ = STATUS_LABEL.get(status, (status, "status-pending"))
-        status_icon = {
-            "PENDING_APPROVAL": "✍️",
-            "APPROVED":         "🚛",
-            "EXECUTING":        "📸",
-            "DONE":             "📦",
-            "REJECTED":         "❌",
-        }.get(status, "📋")
-        title = f"{kind} · {r.get('company_name','')} · {r.get('item_name','')}"
-        sub = f"{r.get('date','')} {r.get('time_from','')}~{r.get('time_to','')} | {r.get('driver_name','')}"
-        target_page = PAGE_FOR_STATUS.get(status, "승인")
-        _zone = r.get('booking_zone') or ''
-        _gate = r.get('gate') or ''
-        _gate_txt = f" · {_gate}" if _gate and _gate != '선택' else ''
-        _zone_txt = f"[{_zone}] " if _zone else ''
-        label = f"{status_icon} {_zone_txt}{title} · {r.get('date','')} {r.get('time_from','')}~{r.get('time_to','')}{_gate_txt} | {slabel}"
+    in_reqs  = [r for r in active_reqs if r.get("kind") == KIND_IN]
+    out_reqs = [r for r in active_reqs if r.get("kind") != KIND_IN]
 
-        can_delete = is_admin or (
-            role == "협력사" and r.get("requester_name") == user_name
-        )
-        can_edit = is_admin or (
-            role == "협력사" and r.get("requester_name") == user_name
-            and status == "PENDING_APPROVAL"
+    def _section_label(text, count):
+        st.markdown(
+            f'<div style="font-weight:700;font-size:13px;color:#1e3a8a;'
+            f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin:12px 0 8px 0;">'
+            f'{text} ({count}건)</div>',
+            unsafe_allow_html=True,
         )
 
-        with st.container(key=f"home_goto_{rid}"):
-            if can_edit and can_delete:
-                gcol, ecol, dcol = st.columns([7, 1.5, 1.5])
-            elif can_edit or can_delete:
-                gcol, acol = st.columns([8, 2])
-                ecol = acol if can_edit else None
-                dcol = acol if can_delete else None
-            else:
-                gcol = st.columns(1)[0]
-                ecol = dcol = None
-            with gcol:
-                if st.button(label, key=f"home_goto_btn_{rid}", use_container_width=True):
-                    st.session_state["ACTIVE_PAGE"] = target_page
-                    st.session_state["SELECTED_REQ_ID"] = rid
-                    st.rerun()
-            if ecol and can_edit:
-                with ecol:
-                    if st.button("수정", key=f"home_edit_{rid}", use_container_width=True):
-                        from modules.schedule.crud import schedule_by_req_id
-                        from datetime import date as _date
-                        sched = schedule_by_req_id(con, rid)
-                        if sched:
-                            sched_date = sched.get("schedule_date", str(_date.today()))
-                            import datetime
-                            st.session_state["sched_current_date"] = datetime.date.fromisoformat(sched_date)
-                            if is_admin:
-                                st.session_state["admin_sel_sched_ids"]  = [sched["id"]]
-                                st.session_state["admin_sel_sched_list"] = [sched]
-                                st.session_state["admin_sel_sched_kind"] = sched.get("kind", "IN")
-                            else:
-                                st.session_state["user_sel_sched_list"] = [sched]
-                        st.session_state["sched_sel_in_slots"]   = []
-                        st.session_state["sched_sel_out_slots"]  = []
-                        st.session_state["sched_edit_from_home"] = True
-                        st.session_state["ACTIVE_PAGE"] = "신청"
+    def _render_req_list(reqs):
+        for r in reqs[:20]:
+            rid = r["id"]
+            kind = "반입" if r.get("kind") == KIND_IN else "반출"
+            status = r.get("status", "PENDING_APPROVAL")
+            slabel, _ = STATUS_LABEL.get(status, (status, "status-pending"))
+            status_icon = {
+                "PENDING_APPROVAL": "✍️",
+                "APPROVED":         "🚛",
+                "EXECUTING":        "📸",
+                "DONE":             "📦",
+                "REJECTED":         "❌",
+            }.get(status, "📋")
+            title = f"{r.get('company_name','')} · {r.get('item_name','')}"
+            target_page = PAGE_FOR_STATUS.get(status, "승인")
+            _zone = r.get('booking_zone') or ''
+            _gate = r.get('gate') or ''
+            _gate_txt = f" · {_gate}" if _gate and _gate != '선택' else ''
+            _zone_txt = f"[{_zone}] " if _zone else ''
+            label = f"{status_icon} {_zone_txt}{title} · {r.get('date','')} {r.get('time_from','')}~{r.get('time_to','')}{_gate_txt} | {slabel}"
+
+            can_delete = is_admin or (
+                role == "협력사" and r.get("requester_name") == user_name
+            )
+            can_edit = is_admin or (
+                role == "협력사" and r.get("requester_name") == user_name
+                and status == "PENDING_APPROVAL"
+            )
+
+            with st.container(key=f"home_goto_{rid}"):
+                if can_edit and can_delete:
+                    gcol, ecol, dcol = st.columns([7, 1.5, 1.5])
+                elif can_edit or can_delete:
+                    gcol, acol = st.columns([8, 2])
+                    ecol = acol if can_edit else None
+                    dcol = acol if can_delete else None
+                else:
+                    gcol = st.columns(1)[0]
+                    ecol = dcol = None
+                with gcol:
+                    if st.button(label, key=f"home_goto_btn_{rid}", use_container_width=True):
+                        st.session_state["ACTIVE_PAGE"] = target_page
+                        st.session_state["SELECTED_REQ_ID"] = rid
                         st.rerun()
-            if dcol and can_delete:
-                with dcol:
-                    if st.button("삭제", key=f"home_del_{rid}", use_container_width=True):
-                        req_delete(con, rid)
-                        st.toast("삭제되었습니다.", icon="🗑️")
-                        st.rerun()
+                if ecol and can_edit:
+                    with ecol:
+                        if st.button("수정", key=f"home_edit_{rid}", use_container_width=True):
+                            from modules.schedule.crud import schedule_by_req_id
+                            from datetime import date as _date
+                            sched = schedule_by_req_id(con, rid)
+                            if sched:
+                                sched_date = sched.get("schedule_date", str(_date.today()))
+                                import datetime
+                                st.session_state["sched_current_date"] = datetime.date.fromisoformat(sched_date)
+                                if is_admin:
+                                    st.session_state["admin_sel_sched_ids"]  = [sched["id"]]
+                                    st.session_state["admin_sel_sched_list"] = [sched]
+                                    st.session_state["admin_sel_sched_kind"] = sched.get("kind", "IN")
+                                else:
+                                    st.session_state["user_sel_sched_list"] = [sched]
+                            st.session_state["sched_sel_in_slots"]   = []
+                            st.session_state["sched_sel_out_slots"]  = []
+                            st.session_state["sched_edit_from_home"] = True
+                            st.session_state["ACTIVE_PAGE"] = "신청"
+                            st.rerun()
+                if dcol and can_delete:
+                    with dcol:
+                        if st.button("삭제", key=f"home_del_{rid}", use_container_width=True):
+                            req_delete(con, rid)
+                            st.toast("삭제되었습니다.", icon="🗑️")
+                            st.rerun()
+
+    _section_label("📥 반입", len(in_reqs))
+    if in_reqs:
+        _render_req_list(in_reqs)
+    else:
+        st.markdown('<div style="font-size:12px;color:#94a3b8;padding:4px 0 8px 0;">진행 중인 반입 요청이 없습니다.</div>', unsafe_allow_html=True)
+
+    _section_label("📤 반출", len(out_reqs))
+    if out_reqs:
+        _render_req_list(out_reqs)
+    else:
+        st.markdown('<div style="font-size:12px;color:#94a3b8;padding:4px 0 8px 0;">진행 중인 반출 요청이 없습니다.</div>', unsafe_allow_html=True)
 
 
 def _inject_eruda():
