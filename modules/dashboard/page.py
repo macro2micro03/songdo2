@@ -254,6 +254,8 @@ def _build_excel(reqs: list, site_name: str, date_label: str, terminal_zones: se
     ws["A1"].font  = title_font
     ws["A1"].alignment = center
     ws["A1"].border = border_thick
+    for _c in range(2, 13):  # B1:L1 — merged cell border fix
+        ws.cell(row=1, column=_c).border = border_thick
     ws.row_dimensions[1].height = 44
 
     # ── 행 2: 현장명 / 날짜 ───────────────────────────────────────────────
