@@ -222,7 +222,7 @@ def page_home(con):
     def _section_label(text, count):
         st.markdown(
             f'<div style="font-weight:700;font-size:13px;color:#1e3a8a;'
-            f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin:12px 0 8px 0;">'
+            f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin:12px 0 18px 0;">'
             f'{text} ({count}건)</div>',
             unsafe_allow_html=True,
         )
