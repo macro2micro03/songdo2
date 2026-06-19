@@ -1300,7 +1300,7 @@ def page_schedule(con):
             if not loading_method.strip():                    save_errors.append("상·하차 방식")
             # 편집 시: 기존 레코드 kind 기준 — 반입만 터미널 필수, 반출은 생략 가능
             _edit_is_in = (ref.get("kind") == KIND_IN) if "ref" in locals() else True
-            if _use_terminal and gate == "선택":  save_errors.append("터미널")
+            if _use_terminal and _edit_is_in and gate == "선택":  save_errors.append("터미널")
             if not worker_supervisor.strip():  save_errors.append("작업지휘자")
             if not worker_guide.strip():       save_errors.append("유도원")
             if not worker_manager.strip():     save_errors.append("담당자")
@@ -1419,7 +1419,7 @@ def page_schedule(con):
             if not company_name.strip():                      errors.append("업체명")
             if not item_name.strip():                         errors.append("자재종류")
             if not loading_method.strip():                    errors.append("상·하차 방식")
-            if _use_terminal and gate == "선택":  errors.append("터미널")
+            if _use_terminal and new_kind == "반입" and gate == "선택":  errors.append("터미널")
             if not vehicle_ton.strip():        errors.append("차량 규격")
             if not worker_supervisor.strip():  errors.append("작업지휘자")
             if not worker_guide.strip():       errors.append("유도원")
