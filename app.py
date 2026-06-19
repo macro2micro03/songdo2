@@ -233,7 +233,7 @@ def page_home(con):
             _cur_zone = r.get("booking_zone") or ""
             if _prev_zone is not None and _cur_zone != _prev_zone:
                 st.markdown(
-                    '<hr style="border:none;border-top:1px dashed #cbd5e1;margin:6px 0;">',
+                    '<hr style="border:none;border-top:1px dashed #cbd5e1;margin:10px 0 14px 0;">',
                     unsafe_allow_html=True,
                 )
             _prev_zone = _cur_zone
