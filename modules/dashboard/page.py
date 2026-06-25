@@ -363,6 +363,252 @@ def _build_excel(reqs: list, site_name: str, date_label: str, terminal_zones: se
     return buf.read()
 
 
+def _build_report_html(reqs: list, site_name: str, date_from: str, date_to: str) -> str:
+    """6/15~ 사용현황 HTML 보고서 생성."""
+    from collections import defaultdict, Counter
+
+    total      = len(reqs)
+    in_reqs    = [r for r in reqs if r.get("kind") == KIND_IN]
+    out_reqs   = [r for r in reqs if r.get("kind") != KIND_IN]
+    done_reqs  = [r for r in reqs if r.get("status") == "DONE"]
+
+    # 일별 집계
+    daily_in:  dict = defaultdict(int)
+    daily_out: dict = defaultdict(int)
+    for r in reqs:
+        d = (r.get("date") or "")[:10]
+        if r.get("kind") == KIND_IN:
+            daily_in[d]  += 1
+        else:
+            daily_out[d] += 1
+    all_dates = sorted(set(list(daily_in.keys()) + list(daily_out.keys())))
+
+    # 존별 집계
+    zone_cnt: Counter = Counter(r.get("booking_zone") or "미지정" for r in reqs)
+
+    # 협력사별 집계 (상위 15)
+    co_cnt: Counter = Counter(r.get("company_name") or "미지정" for r in reqs)
+    top_cos = co_cnt.most_common(15)
+
+    # 시간대별 집계 (1시간 단위)
+    hour_cnt: Counter = Counter()
+    for r in reqs:
+        tf = r.get("time_from") or ""
+        if tf:
+            try:
+                hour_cnt[int(tf[:2])] += 1
+            except Exception:
+                pass
+
+    # ── 일별 바 차트 ──────────────────────────────────────────────────────
+    max_daily = max((daily_in[d] + daily_out[d]) for d in all_dates) if all_dates else 1
+    BAR_H = 120
+    bar_rows = ""
+    for d in all_dates:
+        iv = daily_in.get(d, 0)
+        ov = daily_out.get(d, 0)
+        tot = iv + ov
+        label = d[5:]  # MM-DD
+        ih = int(iv / max_daily * BAR_H) if max_daily else 0
+        oh = int(ov / max_daily * BAR_H) if max_daily else 0
+        bar_rows += (
+            f"<div style='display:flex;flex-direction:column;align-items:center;gap:2px;min-width:34px;'>"
+            f"<div style='font-size:9px;color:#64748b;'>{tot}</div>"
+            f"<div style='display:flex;flex-direction:column;justify-content:flex-end;height:{BAR_H}px;gap:1px;'>"
+            f"<div style='width:22px;height:{ih}px;background:#3b82f6;border-radius:2px 2px 0 0;' title='반입 {iv}'></div>"
+            f"<div style='width:22px;height:{oh}px;background:#f97316;border-radius:2px 2px 0 0;' title='반출 {ov}'></div>"
+            f"</div>"
+            f"<div style='font-size:9px;color:#475569;'>{label}</div>"
+            f"</div>"
+        )
+
+    # ── 존별 바 ───────────────────────────────────────────────────────────
+    zone_colors = ["#6366f1","#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899"]
+    zone_rows = ""
+    max_zone = max(zone_cnt.values()) if zone_cnt else 1
+    for i, (z, cnt) in enumerate(sorted(zone_cnt.items())):
+        pct = int(cnt / total * 100) if total else 0
+        bw  = int(cnt / max_zone * 200)
+        clr = zone_colors[i % len(zone_colors)]
+        zone_rows += (
+            f"<tr>"
+            f"<td style='padding:5px 8px;font-size:12px;font-weight:600;color:#334155;width:80px;'>{z}</td>"
+            f"<td style='padding:5px 4px;'>"
+            f"<div style='width:{bw}px;height:16px;background:{clr};border-radius:3px;'></div></td>"
+            f"<td style='padding:5px 8px;font-size:12px;color:#64748b;'>{cnt}건 ({pct}%)</td>"
+            f"</tr>"
+        )
+
+    # ── 협력사별 ──────────────────────────────────────────────────────────
+    max_co = top_cos[0][1] if top_cos else 1
+    co_rows = ""
+    for i, (co, cnt) in enumerate(top_cos):
+        pct = int(cnt / total * 100) if total else 0
+        bw  = int(cnt / max_co * 200)
+        clr = zone_colors[i % len(zone_colors)]
+        co_rows += (
+            f"<tr>"
+            f"<td style='padding:5px 8px;font-size:11px;color:#334155;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>{co}</td>"
+            f"<td style='padding:5px 4px;'>"
+            f"<div style='width:{bw}px;height:14px;background:{clr};border-radius:3px;'></div></td>"
+            f"<td style='padding:5px 8px;font-size:11px;color:#64748b;'>{cnt}건 ({pct}%)</td>"
+            f"</tr>"
+        )
+
+    # ── 시간대별 ──────────────────────────────────────────────────────────
+    max_hour = max(hour_cnt.values()) if hour_cnt else 1
+    hour_rows = ""
+    for h in range(5, 21):
+        cnt = hour_cnt.get(h, 0)
+        bw  = int(cnt / max_hour * 180) if max_hour else 0
+        hour_rows += (
+            f"<tr>"
+            f"<td style='padding:3px 8px;font-size:11px;color:#475569;width:50px;'>{h:02d}시</td>"
+            f"<td style='padding:3px 4px;'>"
+            f"<div style='width:{bw}px;height:12px;background:#0ea5e9;border-radius:2px;'></div></td>"
+            f"<td style='padding:3px 8px;font-size:11px;color:#64748b;'>{cnt}건</td>"
+            f"</tr>"
+        )
+
+    # ── 상세 목록 ─────────────────────────────────────────────────────────
+    STATUS_KO = {
+        "PENDING_APPROVAL": "확정대기",
+        "APPROVED": "확정완료",
+        "REJECTED": "반려",
+        "EXECUTING": "실행중",
+        "DONE": "등록완료",
+    }
+    detail_rows = ""
+    for r in sorted(reqs, key=lambda x: (x.get("date",""), x.get("booking_zone",""), x.get("time_from",""))):
+        kind_lbl = "반입" if r.get("kind") == KIND_IN else "반출"
+        kind_clr = "#3b82f6" if r.get("kind") == KIND_IN else "#f97316"
+        status   = STATUS_KO.get(r.get("status",""), r.get("status",""))
+        detail_rows += (
+            f"<tr>"
+            f"<td>{(r.get('date') or '')[:10]}</td>"
+            f"<td><span style='color:{kind_clr};font-weight:600;'>{kind_lbl}</span></td>"
+            f"<td>{r.get('booking_zone','')}</td>"
+            f"<td>{r.get('company_name','')}</td>"
+            f"<td>{r.get('item_name','')}</td>"
+            f"<td>{r.get('time_from','')[:5]}~{r.get('time_to','')[:5]}</td>"
+            f"<td>{r.get('vehicle_count','')}대 / {r.get('vehicle_ton','')}t</td>"
+            f"<td>{status}</td>"
+            f"</tr>"
+        )
+
+    generated_at = date.today().strftime("%Y-%m-%d")
+
+    return f"""<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자재 반출입 사용현황 보고서</title>
+<style>
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; background:#f8fafc; color:#1e293b; }}
+  .page {{ max-width:960px; margin:0 auto; padding:32px 24px; }}
+  .report-header {{ background:linear-gradient(135deg,#1e3a8a,#2563eb); color:#fff; border-radius:12px; padding:28px 32px; margin-bottom:28px; }}
+  .report-header h1 {{ font-size:22px; font-weight:700; margin-bottom:6px; }}
+  .report-header p {{ font-size:13px; opacity:0.85; }}
+  .kpi-grid {{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }}
+  .kpi-card {{ background:#fff; border-radius:10px; padding:18px 16px; box-shadow:0 1px 4px rgba(0,0,0,0.08); text-align:center; border-top:3px solid #2563eb; }}
+  .kpi-card.in  {{ border-top-color:#3b82f6; }}
+  .kpi-card.out {{ border-top-color:#f97316; }}
+  .kpi-card.done{{ border-top-color:#10b981; }}
+  .kpi-num {{ font-size:28px; font-weight:700; color:#1e3a8a; }}
+  .kpi-label {{ font-size:12px; color:#64748b; margin-top:4px; }}
+  .section {{ background:#fff; border-radius:10px; padding:20px; margin-bottom:20px; box-shadow:0 1px 4px rgba(0,0,0,0.07); }}
+  .section-title {{ font-size:14px; font-weight:700; color:#1e3a8a; border-bottom:2px solid #e2e8f0; padding-bottom:10px; margin-bottom:16px; }}
+  .bar-chart {{ display:flex; align-items:flex-end; gap:4px; overflow-x:auto; padding-bottom:4px; }}
+  table.detail {{ width:100%; border-collapse:collapse; font-size:11px; }}
+  table.detail th {{ background:#f1f5f9; color:#475569; padding:7px 8px; text-align:left; font-weight:600; border-bottom:2px solid #e2e8f0; }}
+  table.detail td {{ padding:6px 8px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }}
+  table.detail tr:hover td {{ background:#f8fafc; }}
+  .legend {{ display:flex; gap:16px; font-size:11px; color:#64748b; margin-bottom:10px; }}
+  .legend span {{ display:flex; align-items:center; gap:4px; }}
+  .dot {{ width:10px; height:10px; border-radius:2px; display:inline-block; }}
+  .footer {{ text-align:center; font-size:11px; color:#94a3b8; margin-top:28px; padding-top:16px; border-top:1px solid #e2e8f0; }}
+  @media print {{ body{{ background:#fff; }} .page{{ padding:16px; }} }}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="report-header">
+    <h1>📊 자재 반출입 사용현황 보고서</h1>
+    <p>현장 : {site_name} &nbsp;|&nbsp; 기간 : {date_from} ~ {date_to} &nbsp;|&nbsp; 생성일 : {generated_at}</p>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-num">{total}</div>
+      <div class="kpi-label">전체 건수</div>
+    </div>
+    <div class="kpi-card in">
+      <div class="kpi-num" style="color:#3b82f6;">{len(in_reqs)}</div>
+      <div class="kpi-label">반입</div>
+    </div>
+    <div class="kpi-card out">
+      <div class="kpi-num" style="color:#f97316;">{len(out_reqs)}</div>
+      <div class="kpi-label">반출</div>
+    </div>
+    <div class="kpi-card done">
+      <div class="kpi-num" style="color:#10b981;">{len(done_reqs)}</div>
+      <div class="kpi-label">등록완료</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📅 일별 반입·반출 추이</div>
+    <div class="legend">
+      <span><span class="dot" style="background:#3b82f6;"></span>반입</span>
+      <span><span class="dot" style="background:#f97316;"></span>반출</span>
+    </div>
+    <div class="bar-chart">{bar_rows}</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+    <div class="section">
+      <div class="section-title">🗺 존별 이용 현황</div>
+      <table style="width:100%;border-collapse:collapse;">
+        {zone_rows}
+      </table>
+    </div>
+    <div class="section">
+      <div class="section-title">⏰ 시간대별 집중도</div>
+      <table style="width:100%;border-collapse:collapse;">
+        {hour_rows}
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🏢 협력사별 이용 현황 (상위 15)</div>
+    <table style="width:100%;border-collapse:collapse;">
+      {co_rows}
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📋 상세 내역</div>
+    <table class="detail">
+      <thead>
+        <tr>
+          <th>날짜</th><th>구분</th><th>존</th><th>협력사</th><th>자재명</th>
+          <th>시간</th><th>차량</th><th>상태</th>
+        </tr>
+      </thead>
+      <tbody>{detail_rows}</tbody>
+    </table>
+  </div>
+
+  <div class="footer">송도역세권아파트 2BL · 자재 반출입 관리 시스템 · {generated_at} 생성</div>
+</div>
+</body>
+</html>"""
+
+
 def _req_list_for_date(con: Client, project_id: str, target_date: str):
     res = (con.table("requests").select("*")
            .eq("project_id", project_id).eq("date", target_date)
@@ -644,3 +890,34 @@ def page_dashboard(con: Client):
                 )
         except ImportError:
             st.warning("엑셀 다운로드를 사용하려면 `pip install openpyxl` 을 실행하세요.")
+
+    # ── 사용현황 보고서 다운로드 ─────────────────────────────────────────────
+    st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+    with st.expander("📊 기간별 사용현황 보고서"):
+        r_col1, r_col2 = st.columns(2)
+        with r_col1:
+            from datetime import date as _d
+            r_from = st.date_input("시작일", value=_d(2026, 6, 15), key="report_from")
+        with r_col2:
+            r_to = st.date_input("종료일", value=_d.today(), key="report_to")
+        if st.button("📊 보고서 생성 및 다운로드", key="report_gen", use_container_width=True, type="primary"):
+            r_from_str = str(r_from)
+            r_to_str   = str(r_to)
+            _res = (con.table("requests").select("*")
+                    .eq("project_id", project_id)
+                    .gte("date", r_from_str)
+                    .lte("date", r_to_str)
+                    .order("date").order("booking_zone").order("time_from")
+                    .execute())
+            _all = _res.data or []
+            if _all:
+                _html = _build_report_html(_all, site_name, r_from_str, r_to_str)
+                st.download_button(
+                    label="⬇️ HTML 파일 저장",
+                    data=_html.encode("utf-8"),
+                    file_name=f"사용현황보고서_{r_from_str}~{r_to_str}.html",
+                    mime="text/html",
+                    use_container_width=True,
+                )
+            else:
+                st.warning("해당 기간에 데이터가 없습니다.")
