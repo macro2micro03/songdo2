@@ -544,6 +544,22 @@ def main():
     active_page = st.session_state.get("ACTIVE_PAGE", "홈")
     # 현재 페이지를 URL에 저장 (새로고침 시 복원용)
     st.query_params["_p"] = active_page
+
+    # 페이지 접속 로그 (페이지가 바뀔 때만)
+    _prev_logged = st.session_state.get("_last_logged_page")
+    if active_page != _prev_logged:
+        from shared.access_log import log_access
+        log_access(
+            con,
+            st.session_state.get("PROJECT_ID", ""),
+            st.session_state.get("USER_ID", ""),
+            st.session_state.get("USER_NAME", ""),
+            st.session_state.get("USER_ROLE", ""),
+            "page_view",
+            active_page,
+        )
+        st.session_state["_last_logged_page"] = active_page
+
     if active_page == "홈":
         page_home(con)
     elif active_page in PAGE_ROUTER:

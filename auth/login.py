@@ -183,8 +183,16 @@ def _page_login_form(con: Client, project_id: str, project_name: str) -> None:
                     ok, msg = auth_login(con, username, password)
                     if ok:
                         from auth.session import make_session_token
+                        from shared.access_log import log_access
                         st.query_params["_s"] = make_session_token(
                             username.strip(), project_id
+                        )
+                        log_access(
+                            con, project_id,
+                            username.strip(),
+                            st.session_state.get("USER_NAME", ""),
+                            st.session_state.get("USER_ROLE", ""),
+                            "login",
                         )
                         _page_area.empty()
                         st.rerun()
