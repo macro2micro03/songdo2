@@ -681,7 +681,7 @@ def page_dashboard(con: Client):
     reqs = _req_list_for_date(con, project_id, target_str)
 
     # 시간대별(내림차순) → zone별(내림차순) 정렬
-    reqs = sorted(reqs, key=lambda r: (r.get("time_from", ""), r.get("booking_zone", "")), reverse=True)
+    reqs = sorted(reqs, key=lambda r: (r.get("booking_zone", ""), r.get("kind", ""), r.get("time_from", "")))
 
     dow_map = {0:"월요일", 1:"화요일", 2:"수요일", 3:"목요일",
                4:"금요일", 5:"토요일", 6:"일요일"}
