@@ -249,6 +249,17 @@ def _terminal_status_dialog(terminal: str, in_n: int, is_freed: bool,
             st.rerun()
 
 
+def _max_date_skip_sunday(base: date, advance_days: int) -> date:
+    """오늘부터 advance_days 영업일(일요일 제외) 후 날짜를 반환."""
+    d = base
+    counted = 0
+    while counted < advance_days:
+        d += timedelta(days=1)
+        if d.weekday() != 6:  # 일요일(6) 제외
+            counted += 1
+    return d
+
+
 @measure("page.schedule")
 
 
@@ -546,7 +557,7 @@ def page_schedule(con):
             with nav1:
                 today = date.today()
                 _adv = int(settings_get(con, "schedule_advance_days", "2"))
-                max_date = today + timedelta(days=90) if is_admin else today + timedelta(days=_adv)
+                max_date = today + timedelta(days=90) if is_admin else _max_date_skip_sunday(today, _adv)
                 if st.button("‹ 전일", key="sched_prev", use_container_width=True,
                              disabled=(current_date <= today)):
                     new_date = current_date - timedelta(days=1)
@@ -561,7 +572,7 @@ def page_schedule(con):
             with nav2:
                 today = date.today()
                 _adv = int(settings_get(con, "schedule_advance_days", "2"))
-                max_date = today + timedelta(days=90) if is_admin else today + timedelta(days=_adv)
+                max_date = today + timedelta(days=90) if is_admin else _max_date_skip_sunday(today, _adv)
                 _wd_list = ["월", "화", "수", "목", "금", "토", "일"]
                 _wd       = _wd_list[current_date.weekday()]
                 _is_sun   = current_date.weekday() == 6
@@ -601,7 +612,7 @@ def page_schedule(con):
                     st.rerun()
             with nav3:
                 _adv = int(settings_get(con, "schedule_advance_days", "2"))
-                max_date = date.today() + timedelta(days=90) if is_admin else date.today() + timedelta(days=_adv)
+                max_date = date.today() + timedelta(days=90) if is_admin else _max_date_skip_sunday(date.today(), _adv)
                 if st.button("익일 ›", key="sched_next", use_container_width=True,
                              disabled=(current_date >= max_date)):
                     new_date = current_date + timedelta(days=1)
