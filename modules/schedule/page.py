@@ -545,7 +545,8 @@ def page_schedule(con):
             nav1, nav2, nav3 = st.columns([1, 1.75, 1])
             with nav1:
                 today = date.today()
-                max_date = today + timedelta(days=90) if is_admin else today + timedelta(days=2)
+                _adv = int(settings_get(con, "schedule_advance_days", "2"))
+                max_date = today + timedelta(days=90) if is_admin else today + timedelta(days=_adv)
                 if st.button("‹ 전일", key="sched_prev", use_container_width=True,
                              disabled=(current_date <= today)):
                     new_date = current_date - timedelta(days=1)
@@ -559,7 +560,8 @@ def page_schedule(con):
                     st.rerun()
             with nav2:
                 today = date.today()
-                max_date = today + timedelta(days=90) if is_admin else today + timedelta(days=2)
+                _adv = int(settings_get(con, "schedule_advance_days", "2"))
+                max_date = today + timedelta(days=90) if is_admin else today + timedelta(days=_adv)
                 _wd_list = ["월", "화", "수", "목", "금", "토", "일"]
                 _wd       = _wd_list[current_date.weekday()]
                 _is_sun   = current_date.weekday() == 6
@@ -598,7 +600,8 @@ def page_schedule(con):
                     st.session_state.pop("sched_edit_from_home", None)
                     st.rerun()
             with nav3:
-                max_date = date.today() + timedelta(days=90) if is_admin else date.today() + timedelta(days=2)
+                _adv = int(settings_get(con, "schedule_advance_days", "2"))
+                max_date = date.today() + timedelta(days=90) if is_admin else date.today() + timedelta(days=_adv)
                 if st.button("익일 ›", key="sched_next", use_container_width=True,
                              disabled=(current_date >= max_date)):
                     new_date = current_date + timedelta(days=1)

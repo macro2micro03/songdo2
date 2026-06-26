@@ -42,6 +42,16 @@ def page_admin(con: Client):
 
         st.markdown("---")
 
+        st.markdown("#### 📅 스케줄 입력 가능 기간")
+        _sched_days = int(settings_get(con, "schedule_advance_days", "2"))
+        sched_advance_days = st.number_input(
+            "협력사 입력 가능 일수 (오늘 포함 +N일)",
+            min_value=0, max_value=30, value=_sched_days, step=1,
+            help="0 = 오늘만, 2 = 오늘·내일·모레 (기본값: 2)"
+        )
+
+        st.markdown("---")
+
         st.markdown("#### 🔄 승인 라우팅")
         routing = routing_get(con)
         in_default  = [r for r in routing.get("IN",  []) if r in ROLES]
@@ -55,6 +65,7 @@ def page_admin(con: Client):
             settings_set(con, "site_pin", site_pin.strip() or DEFAULT_SITE_PIN)
             settings_set(con, "admin_pin", admin_pin.strip() or DEFAULT_ADMIN_PIN)
             settings_set(con, "approval_routing_json", json.dumps({"IN": in_route, "OUT": out_route}, ensure_ascii=False))
+            settings_set(con, "schedule_advance_days", str(int(sched_advance_days)))
             st.session_state["PROJECT_NAME"] = new_site_name
             st.success("저장 완료")
             st.rerun()
