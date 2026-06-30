@@ -118,6 +118,23 @@ def page_admin(con: Client):
             color: #f8f8f8 !important; font-size: 11px !important;
             line-height: 1 !important; margin: 0 !important; padding: 0 !important;
         }
+        [class*="st-key-zone_edit_save_"] button,
+        [class*="st-key-zone_edit_cancel_"] button {
+            height: 32px !important; min-height: 32px !important;
+            padding: 0 6px !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
+            white-space: nowrap !important;
+        }
+        [class*="st-key-zone_edit_save_"] button p,
+        [class*="st-key-zone_edit_cancel_"] button p,
+        [class*="st-key-zone_edit_save_"] button span,
+        [class*="st-key-zone_edit_cancel_"] button span,
+        [class*="st-key-zone_edit_save_"] button div,
+        [class*="st-key-zone_edit_cancel_"] button div {
+            font-size: 11px !important;
+            line-height: 1 !important; margin: 0 !important; padding: 0 !important;
+            white-space: nowrap !important;
+        }
         [class*="st-key-zone_row_"] [data-testid="stElementContainer"] {
             margin: 0 !important; padding: 0 !important;
         }
@@ -152,7 +169,7 @@ def page_admin(con: Client):
             _editing = st.session_state.get("zone_edit_idx") == i
             with st.container(key=f"zone_row_{i}"):
                 if _editing:
-                    ec1, ec2, ec3 = st.columns([5, 1, 1])
+                    ec1, ec2, ec3 = st.columns([4, 1.2, 1.2])
                     with ec1:
                         new_name = st.text_input("새 이름", value=z, key=f"zone_edit_input_{i}",
                                                  label_visibility="collapsed")
