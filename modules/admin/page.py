@@ -98,8 +98,25 @@ def page_admin(con: Client):
         [class*="st-key-zone_row_"] .stHorizontalBlock > [data-testid="stColumn"]:nth-child(1) {
             flex: 1 1 0 !important; min-width: 0 !important;
         }
-        [class*="st-key-zone_row_"] .stHorizontalBlock > [data-testid="stColumn"]:nth-child(2) {
+        [class*="st-key-zone_row_"] .stHorizontalBlock > [data-testid="stColumn"]:nth-child(2),
+        [class*="st-key-zone_row_"] .stHorizontalBlock > [data-testid="stColumn"]:nth-child(3) {
             flex: 0 0 52px !important; min-width: 52px !important; max-width: 52px !important;
+        }
+        [class*="st-key-edit_zone_"] button {
+            background-color: #2563eb !important;
+            border-color: #2563eb !important;
+            border-radius: 4px !important;
+            height: 32px !important; min-height: 32px !important;
+            padding: 0 8px !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
+        }
+        [class*="st-key-edit_zone_"] button:hover { background-color: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+        [class*="st-key-edit_zone_"] button,
+        [class*="st-key-edit_zone_"] button p,
+        [class*="st-key-edit_zone_"] button span,
+        [class*="st-key-edit_zone_"] button div {
+            color: #f8f8f8 !important; font-size: 11px !important;
+            line-height: 1 !important; margin: 0 !important; padding: 0 !important;
         }
         [class*="st-key-zone_row_"] [data-testid="stElementContainer"] {
             margin: 0 !important; padding: 0 !important;
@@ -132,26 +149,62 @@ def page_admin(con: Client):
         for i, z in enumerate(_zones):
             is_disabled = z in _disabled
             _badge = "  ⚠️비활성" if is_disabled else ""
+            _editing = st.session_state.get("zone_edit_idx") == i
             with st.container(key=f"zone_row_{i}"):
-                zc1, zc2 = st.columns([6, 1])
-                with zc1:
-                    active = st.toggle(f"{z}{_badge}", value=not is_disabled,
-                                       key=f"zone_toggle_{i}")
-                    if active == is_disabled:
-                        if active:
+                if _editing:
+                    ec1, ec2, ec3 = st.columns([5, 1, 1])
+                    with ec1:
+                        new_name = st.text_input("새 이름", value=z, key=f"zone_edit_input_{i}",
+                                                 label_visibility="collapsed")
+                    with ec2:
+                        if st.button("저장", key=f"zone_edit_save_{i}", use_container_width=True):
+                            nn = new_name.strip()
+                            if nn and nn != z:
+                                if nn in _zones:
+                                    st.warning(f"'{nn}'은 이미 등록되어 있습니다.")
+                                else:
+                                    _zones[i] = nn
+                                    if z in _disabled:
+                                        _disabled = [nn if d == z else d for d in _disabled]
+                                    settings_set(con, "gate_zones_json", json.dumps(_zones, ensure_ascii=False))
+                                    settings_set(con, "gate_zones_disabled_json", json.dumps(_disabled, ensure_ascii=False))
+                                    # 기존 저장된 요청/스케줄의 터미널 값도 함께 변경
+                                    con.table("requests").update({"gate": nn}).eq("gate", z).execute()
+                                    con.table("schedules").update({"gate": nn}).eq("gate", z).execute()
+                                    st.session_state.pop("zone_edit_idx", None)
+                                    st.success(f"'{z}' → '{nn}' 으로 변경 완료 (기존 데이터 포함)")
+                                    st.rerun()
+                            else:
+                                st.session_state.pop("zone_edit_idx", None)
+                                st.rerun()
+                    with ec3:
+                        if st.button("취소", key=f"zone_edit_cancel_{i}", use_container_width=True):
+                            st.session_state.pop("zone_edit_idx", None)
+                            st.rerun()
+                else:
+                    zc1, zc2, zc3 = st.columns([5, 1, 1])
+                    with zc1:
+                        active = st.toggle(f"{z}{_badge}", value=not is_disabled,
+                                           key=f"zone_toggle_{i}")
+                        if active == is_disabled:
+                            if active:
+                                _disabled = [d for d in _disabled if d != z]
+                            else:
+                                if z not in _disabled:
+                                    _disabled.append(z)
+                            settings_set(con, "gate_zones_disabled_json", json.dumps(_disabled, ensure_ascii=False))
+                            st.rerun()
+                    with zc2:
+                        if st.button("수정", key=f"edit_zone_{i}", use_container_width=True):
+                            st.session_state["zone_edit_idx"] = i
+                            st.rerun()
+                    with zc3:
+                        if st.button("삭제", key=f"del_zone_{i}", use_container_width=True):
+                            _zones.pop(i)
                             _disabled = [d for d in _disabled if d != z]
-                        else:
-                            if z not in _disabled:
-                                _disabled.append(z)
-                        settings_set(con, "gate_zones_disabled_json", json.dumps(_disabled, ensure_ascii=False))
-                        st.rerun()
-                with zc2:
-                    if st.button("삭제", key=f"del_zone_{i}", use_container_width=True):
-                        _zones.pop(i)
-                        _disabled = [d for d in _disabled if d != z]
-                        settings_set(con, "gate_zones_json", json.dumps(_zones, ensure_ascii=False))
-                        settings_set(con, "gate_zones_disabled_json", json.dumps(_disabled, ensure_ascii=False))
-                        st.rerun()
+                            settings_set(con, "gate_zones_json", json.dumps(_zones, ensure_ascii=False))
+                            settings_set(con, "gate_zones_disabled_json", json.dumps(_disabled, ensure_ascii=False))
+                            st.rerun()
     else:
         st.caption("등록된 터미널이 없습니다.")
 
