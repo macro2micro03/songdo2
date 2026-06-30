@@ -29,6 +29,8 @@ _ITEM_TYPES = [
     "기타",
 ]
 
+_LOADING_TYPES = ["지게차", "인력", "직접입력"]
+
 
 def _insert_extra_slots(con, project_id, sel_list, add_slots, kind_val, gate,
                         company_name, vehicle_info, created_by) -> int:
@@ -1178,8 +1180,15 @@ def page_schedule(con):
                 placeholder="목록에 없는 자재종류를 직접 입력하세요",
             )
             item_name = (item_etc.strip() if item_sel == "기타" and item_etc.strip() else item_sel)
-            loading_method = st.text_input("상·하차 방식 *", value=def_loading,
-                                           placeholder="예) 지게차, 크레인, 인력")
+
+            _load_idx = _LOADING_TYPES.index(def_loading) if def_loading in _LOADING_TYPES else (len(_LOADING_TYPES) - 1 if def_loading else 0)
+            loading_sel = st.selectbox("상·하차 방식 *", options=_LOADING_TYPES, index=_load_idx)
+            loading_etc = st.text_input(
+                "직접입력 (위에서 '직접입력' 선택 시 입력)",
+                value=(def_loading if def_loading not in _LOADING_TYPES else ""),
+                placeholder="예) 크레인, 호이스트",
+            )
+            loading_method = (loading_etc.strip() if loading_sel == "직접입력" and loading_etc.strip() else loading_sel)
             st.markdown("---")
 
             st.markdown("""<style>
@@ -1451,7 +1460,8 @@ def page_schedule(con):
             if not company_name.strip():                      errors.append("업체명")
             if not item_name.strip() or item_sel == "기타" and not item_etc.strip():
                 errors.append("자재종류")
-            if not loading_method.strip():                    errors.append("상·하차 방식")
+            if not loading_method.strip() or loading_sel == "직접입력" and not loading_etc.strip():
+                errors.append("상·하차 방식")
             # 터미널 미사용 허용 — 필수 검사 없음
             if not vehicle_ton.strip():        errors.append("차량 규격")
             if not worker_supervisor.strip():  errors.append("작업지휘자")
