@@ -17,6 +17,18 @@ from shared.helpers import now_str, req_display_id
 from db.models import settings_get
 from config import KIND_IN, KIND_OUT, VEHICLE_TONS, GATE_ZONES, TIME_SLOTS
 
+_ITEM_TYPES = [
+    "파이프류 (3m 미만)",
+    "파이프류 (3m 이상)",
+    "블럭/벽돌",
+    "시멘트류",
+    "타일류",
+    "목창호",
+    "몰드바",
+    "에어컨",
+    "기타",
+]
+
 
 def _insert_extra_slots(con, project_id, sel_list, add_slots, kind_val, gate,
                         company_name, vehicle_info, created_by) -> int:
@@ -1158,8 +1170,14 @@ def page_schedule(con):
         with st.form(form_key, clear_on_submit=False):
             company_name = st.text_input("업체명 *", value=def_company,
                                          placeholder="예) OO내장, OO설비")
-            item_name    = st.text_input("자재종류 *", value=def_item,
-                                         placeholder="예) 백관, 석고보드, 시멘트")
+            _item_idx  = _ITEM_TYPES.index(def_item) if def_item in _ITEM_TYPES else (len(_ITEM_TYPES) - 1 if def_item else 0)
+            item_sel   = st.selectbox("자재종류 *", options=_ITEM_TYPES, index=_item_idx)
+            item_etc   = st.text_input(
+                "기타 자재명 (위에서 '기타' 선택 시 입력)",
+                value=(def_item if def_item not in _ITEM_TYPES else ""),
+                placeholder="목록에 없는 자재종류를 직접 입력하세요",
+            )
+            item_name = (item_etc.strip() if item_sel == "기타" and item_etc.strip() else item_sel)
             loading_method = st.text_input("상·하차 방식 *", value=def_loading,
                                            placeholder="예) 지게차, 크레인, 인력")
             st.markdown("---")
@@ -1431,7 +1449,8 @@ def page_schedule(con):
 
             errors = []
             if not company_name.strip():                      errors.append("업체명")
-            if not item_name.strip():                         errors.append("자재종류")
+            if not item_name.strip() or item_sel == "기타" and not item_etc.strip():
+                errors.append("자재종류")
             if not loading_method.strip():                    errors.append("상·하차 방식")
             # 터미널 미사용 허용 — 필수 검사 없음
             if not vehicle_ton.strip():        errors.append("차량 규격")
