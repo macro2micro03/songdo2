@@ -229,8 +229,25 @@ def page_home(con):
 
     def _render_req_list(reqs):
         _prev_zone = None
+        _prev_date = None
+        _WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"]
         for r in reqs[:20]:
+            _cur_date = r.get("date") or ""
             _cur_zone = r.get("booking_zone") or ""
+            if _cur_date != _prev_date:
+                _margin_top = "18px" if _prev_date is not None else "4px"
+                try:
+                    from datetime import date as _date
+                    _d = _date.fromisoformat(_cur_date)
+                    _day_label = f"{_cur_date} ({_WEEKDAYS[_d.weekday()]})"
+                except Exception:
+                    _day_label = _cur_date
+                st.markdown(
+                    f'<div style="margin:{_margin_top} 0 8px 0;padding:4px 10px;background:#f1f5f9;border-left:3px solid #3b82f6;border-radius:4px;font-size:12px;font-weight:600;color:#334155;">📅 {_day_label}</div>',
+                    unsafe_allow_html=True,
+                )
+                _prev_date = _cur_date
+                _prev_zone = None
             if _prev_zone is not None and _cur_zone != _prev_zone:
                 st.markdown(
                     '<hr style="border:none;border-top:1px dashed #cbd5e1;margin:6px 0 20px 0;">',
