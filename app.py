@@ -195,7 +195,7 @@ def page_home(con):
     all_reqs = req_list(con, limit=100)
     today = date.today().isoformat()
     active_reqs = [r for r in all_reqs if r.get("status") not in ("DONE",) and (not r.get("date") or r.get("date") >= today)]
-    active_reqs = sorted(active_reqs, key=lambda r: (r.get("date", ""), r.get("booking_zone", ""), r.get("time_from", "")))
+    active_reqs = sorted(active_reqs, key=lambda r: (r.get("date", ""), r.get("kind", ""), r.get("booking_zone", ""), r.get("time_from", "")))
 
     STATUS_LABEL = {
         "PENDING_APPROVAL": ("대기중", "status-pending"),
@@ -216,38 +216,23 @@ def page_home(con):
         st.markdown('<div class="card" style="text-align:center;color:var(--text-muted);font-size:13px;">진행 중인 요청이 없습니다.</div>', unsafe_allow_html=True)
         return
 
-    in_reqs  = [r for r in active_reqs if r.get("kind") == KIND_IN]
-    out_reqs = [r for r in active_reqs if r.get("kind") != KIND_IN]
+    _WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"]
 
-    def _section_label(text, count):
+    # 날짜 목록 추출 (중복 제거, 정렬 유지)
+    _dates = list(dict.fromkeys(r.get("date", "") for r in active_reqs))
+
+    def _kind_label(text, count):
         st.markdown(
             f'<div style="font-weight:700;font-size:13px;color:#1e3a8a;'
-            f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin:12px 0 18px 0;">'
+            f'padding:6px 0 4px 0;border-bottom:2px solid #1e3a8a;margin:8px 0 14px 0;">'
             f'{text} ({count}건)</div>',
             unsafe_allow_html=True,
         )
 
     def _render_req_list(reqs):
         _prev_zone = None
-        _prev_date = None
-        _WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"]
-        for r in reqs[:20]:
-            _cur_date = r.get("date") or ""
+        for r in reqs:
             _cur_zone = r.get("booking_zone") or ""
-            if _cur_date != _prev_date:
-                _margin_top = "18px" if _prev_date is not None else "4px"
-                try:
-                    from datetime import date as _date
-                    _d = _date.fromisoformat(_cur_date)
-                    _day_label = f"{_cur_date} ({_WEEKDAYS[_d.weekday()]})"
-                except Exception:
-                    _day_label = _cur_date
-                st.markdown(
-                    f'<div style="margin:{_margin_top} 0 8px 0;padding:4px 10px;background:#f1f5f9;border-left:3px solid #3b82f6;border-radius:4px;font-size:12px;font-weight:600;color:#334155;">📅 {_day_label}</div>',
-                    unsafe_allow_html=True,
-                )
-                _prev_date = _cur_date
-                _prev_zone = None
             if _prev_zone is not None and _cur_zone != _prev_zone:
                 st.markdown(
                     '<hr style="border:none;border-top:1px dashed #cbd5e1;margin:6px 0 20px 0;">',
@@ -324,17 +309,25 @@ def page_home(con):
                             st.toast("삭제되었습니다.", icon="🗑️")
                             st.rerun()
 
-    _section_label("📥 반입", len(in_reqs))
-    if in_reqs:
-        _render_req_list(in_reqs)
-    else:
-        st.markdown('<div style="font-size:12px;color:#94a3b8;padding:4px 0 8px 0;">진행 중인 반입 요청이 없습니다.</div>', unsafe_allow_html=True)
-
-    _section_label("📤 반출", len(out_reqs))
-    if out_reqs:
-        _render_req_list(out_reqs)
-    else:
-        st.markdown('<div style="font-size:12px;color:#94a3b8;padding:4px 0 8px 0;">진행 중인 반출 요청이 없습니다.</div>', unsafe_allow_html=True)
+    for _i, _dt in enumerate(_dates):
+        try:
+            _d = date.fromisoformat(_dt)
+            _day_label = f"{_dt} ({_WEEKDAYS[_d.weekday()]})"
+        except Exception:
+            _day_label = _dt
+        _margin_top = "4px" if _i == 0 else "24px"
+        st.markdown(
+            f'<div style="margin:{_margin_top} 0 10px 0;padding:5px 12px;background:#eff6ff;border-left:4px solid #3b82f6;border-radius:4px;font-size:13px;font-weight:700;color:#1e40af;">📅 {_day_label}</div>',
+            unsafe_allow_html=True,
+        )
+        _day_in  = [r for r in active_reqs if r.get("date") == _dt and r.get("kind") == KIND_IN]
+        _day_out = [r for r in active_reqs if r.get("date") == _dt and r.get("kind") != KIND_IN]
+        if _day_in:
+            _kind_label("📥 반입", len(_day_in))
+            _render_req_list(_day_in)
+        if _day_out:
+            _kind_label("📤 반출", len(_day_out))
+            _render_req_list(_day_out)
 
 
 def _inject_eruda():
