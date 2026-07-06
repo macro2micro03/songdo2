@@ -6,11 +6,12 @@ from typing import List, Dict, Any, Optional
 from supabase import Client
 
 from config import KIND_IN, KIND_OUT
+from shared.helpers import today_kst
 
 
 def render_daily_summary(schedules: List[Dict[str, Any]], con: Optional[Client] = None):
     """Render daily summary card — counts based on today's requests (date field)."""
-    today = date.today().isoformat()
+    today = today_kst().isoformat()
 
     if con is not None:
         # 금일 반입예정일 기준 요청 집계

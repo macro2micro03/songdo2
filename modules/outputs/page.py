@@ -7,7 +7,7 @@ from shared.timing import measure
 from supabase import Client
 
 from datetime import date
-from shared.helpers import b64_download_link, req_display_id
+from shared.helpers import b64_download_link, req_display_id, today_kst
 from shared.storage import cache_to_local
 from db.connection import outputs_bucket
 from config import KIND_IN
@@ -52,7 +52,7 @@ def page_outputs(con: Client):
     </style>
     """, unsafe_allow_html=True)
     st.markdown("### 📦 계획서")
-    today = date.today().isoformat()
+    today = today_kst().isoformat()
     allreq = [
         r for r in req_list(con, None, None, 500)
         if r.get('status') in ('APPROVED', 'EXECUTING', 'DONE')

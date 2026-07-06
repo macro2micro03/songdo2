@@ -4,13 +4,8 @@ Modular architecture with project-based authentication
 and configurable feature modules.
 """
 import html
-from datetime import date, datetime, timezone, timedelta
+from datetime import date
 import streamlit as st
-
-_KST = timezone(timedelta(hours=9))
-
-def _today_kst() -> date:
-    return datetime.now(_KST).date()
 
 # ── Page config (must be first Streamlit call) ──
 st.set_page_config(
@@ -64,7 +59,7 @@ def page_home(con):
     from modules.execution.crud import photos_for_req
     from config import KIND_IN
     from pathlib import Path
-    from shared.helpers import today_str
+    from shared.helpers import today_str, today_kst
 
     role      = st.session_state.get("USER_ROLE", "")
     is_admin  = st.session_state.get("IS_ADMIN", False)
@@ -198,7 +193,7 @@ def page_home(con):
 
     # 전체 요청 목록 (진행 중인 건 우선)
     all_reqs = req_list(con, limit=100)
-    today = _today_kst().isoformat()
+    today = today_kst().isoformat()
     active_reqs = [r for r in all_reqs if r.get("status") not in ("DONE",) and (not r.get("date") or r.get("date") >= today)]
     active_reqs = sorted(active_reqs, key=lambda r: (r.get("date", ""), r.get("kind", ""), r.get("booking_zone", ""), r.get("time_from", "")))
 
@@ -293,7 +288,7 @@ def page_home(con):
                             from datetime import date as _date
                             sched = schedule_by_req_id(con, rid)
                             if sched:
-                                sched_date = sched.get("schedule_date", _today_kst().isoformat())
+                                sched_date = sched.get("schedule_date", today_kst().isoformat())
                                 import datetime
                                 st.session_state["sched_current_date"] = datetime.date.fromisoformat(sched_date)
                                 if is_admin:

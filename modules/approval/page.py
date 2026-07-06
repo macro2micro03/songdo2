@@ -11,7 +11,7 @@ from modules.request.crud import req_get
 from modules.outputs.crud import generate_all_outputs
 from modules.schedule.models import generate_time_slots
 from shared.signature import ui_signature_block
-from shared.helpers import req_display_id
+from shared.helpers import req_display_id, today_kst
 from db.models import settings_get
 from shared.storage_plan import (
     ground_zones, terminals_b1, terminals_b2, default_days, add_days,
@@ -106,7 +106,7 @@ def _render_storage_module(con: Client, req: dict, rid: str) -> None:
         except Exception:
             return fallback
 
-    today = _dt.date.today()
+    today = today_kst()
     req_date = _to_date(req.get("date"), today)
 
     # ── 하역 (지상): 존 + 시간 슬롯 타임테이블 (신청 화면처럼) ──────────
@@ -268,7 +268,7 @@ def page_approval(con: Client):
     project_id = st.session_state.get("PROJECT_ID", "")
 
     inbox = approvals_inbox(con, user_role, is_admin)
-    _today = _date.today().isoformat()
+    _today = today_kst().isoformat()
     inbox = [i for i in inbox if i.get("date", "") >= _today]
 
     # ── 협력사: 서명 권한 없음 → 본인 요청의 대기 현황만 표시 ──────────────

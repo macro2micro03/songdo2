@@ -2,16 +2,24 @@
 import hashlib
 import base64
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 import numpy as np
 
+_KST = timezone(timedelta(hours=9))
+
+def now_kst() -> datetime:
+    return datetime.now(_KST)
+
+def today_kst() -> date:
+    return now_kst().date()
+
 def now_str() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return now_kst().strftime("%Y-%m-%d %H:%M:%S")
 
 def today_str() -> str:
-    return date.today().isoformat()
+    return today_kst().isoformat()
 
 def ensure_dir(p: Path) -> Path:
     p.mkdir(parents=True, exist_ok=True)

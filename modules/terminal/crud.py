@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 from supabase import Client
 
 from db.models import settings_get
-from shared.helpers import now_str
+from shared.helpers import now_str, today_kst
 
 _TERMINAL_RE = re.compile(r"^B[12]-\d{2}$")
 _BLOCKED = {"PENDING_APPROVAL", "APPROVED", "EXECUTING", "DONE"}
@@ -37,7 +37,7 @@ def terminal_max_days(con: Client, project_id: str) -> int:
 def terminal_occupied(con: Client, project_id: str,
                       company: Optional[str] = None) -> List[Dict]:
     """반입일 <= 오늘, 반출 미등록인 터미널 목록."""
-    today = _date.today().isoformat()
+    today = today_kst().isoformat()
     res = (con.table("requests")
            .select(_SEL)
            .eq("project_id", project_id)

@@ -8,6 +8,7 @@ from modules.terminal.crud import (
     terminal_max_days, terminal_occupied, terminal_history, terminal_release,
 )
 from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, floor_image
+from shared.helpers import today_kst
 
 
 def _occ_grid_html(terminals, occ, max_days: int = 0) -> str:
@@ -126,8 +127,8 @@ def page_terminal(con: Client) -> None:
 
     # ── 도면 익스팬더 ────────────────────────────────────────────────────────
     with st.expander("🗺 터미널 도면 (B1F · B2F)"):
-        _occ = occupancy_on(con, project_id, _date.today().isoformat())
-        st.caption(f"📅 오늘({_date.today().isoformat()}) 기준 점유 현황 (빨강=점유, 초록=빈곳)")
+        _occ = occupancy_on(con, project_id, today_kst().isoformat())
+        st.caption(f"📅 오늘({today_kst().isoformat()}) 기준 점유 현황 (빨강=점유, 초록=빈곳)")
 
         floor_sel = st.radio("층 선택", ["B1F", "B2F"], horizontal=True, key="term_floor_sel")
         if floor_sel == "B1F":
@@ -146,7 +147,7 @@ def page_terminal(con: Client) -> None:
     # ── 보관 현황 ────────────────────────────────────────────────────────────
     with tab1:
         occupied = terminal_occupied(con, project_id, filter_co)
-        today    = _date.today()
+        today    = today_kst()
         b1 = [r for r in occupied if r["terminal"].startswith("B1-")]
         b2 = [r for r in occupied if r["terminal"].startswith("B2-")]
 

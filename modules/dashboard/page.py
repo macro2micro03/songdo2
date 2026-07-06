@@ -1,11 +1,13 @@
 """날짜별 대시보드 — 자재 상·하차 반입/반출 현황 테이블."""
 import io
 from datetime import date, timedelta
+
 import streamlit as st
 from shared.timing import measure
 from supabase import Client
 from config import KIND_IN, KIND_OUT
 from db.models import settings_get
+from shared.helpers import today_kst
 
 
 _DASH_CSS = """
@@ -496,7 +498,7 @@ def _build_report_html(reqs: list, site_name: str, date_from: str, date_to: str)
             f"</tr>"
         )
 
-    generated_at = date.today().strftime("%Y-%m-%d")
+    generated_at = today_kst().strftime("%Y-%m-%d")
 
     return f"""<!DOCTYPE html>
 <html lang="ko">
@@ -632,9 +634,9 @@ def page_dashboard(con: Client):
     # 수정: dash_date_picker 단일 source of truth로 통일하고, nav 버튼이
     # 같은 key를 직접 갱신하도록 변경.
     if "dash_date_picker" not in st.session_state:
-        st.session_state["dash_date_picker"] = date.today()
+        st.session_state["dash_date_picker"] = today_kst()
     cur_date: date = st.session_state["dash_date_picker"]
-    today: date = date.today()
+    today: date = today_kst()
 
     # ── 날짜 네비게이션 ───────────────────────────────────────────────────
     with st.container(key="dash_nav"):

@@ -7,7 +7,7 @@ from supabase import Client
 from datetime import date
 from modules.request.crud import req_list, req_update_status
 from modules.execution.crud import execution_upsert, execution_get
-from shared.helpers import req_display_id
+from shared.helpers import req_display_id, today_kst
 from modules.execution.photos import ui_photo_upload
 from modules.outputs.crud import generate_all_outputs
 
@@ -85,7 +85,7 @@ def page_execute(con: Client):
     """, unsafe_allow_html=True)
 
     st.markdown("### 📸 사진 등록")
-    today = date.today().isoformat()
+    today = today_kst().isoformat()
     candidates = [
         r for r in req_list(con, None, None, 500)
         if r['status'] in ['APPROVED', 'EXECUTING', 'DONE']

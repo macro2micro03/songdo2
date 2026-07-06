@@ -13,7 +13,7 @@ from modules.schedule.css.schedule import get_schedule_css
 from modules.request.crud import req_insert, req_update_time, req_get
 from modules.approval.crud import approvals_create_default
 from modules.schedule.crud import schedule_delete, schedule_update, schedule_get
-from shared.helpers import now_str, req_display_id
+from shared.helpers import now_str, req_display_id, today_kst
 from db.models import settings_get
 from config import KIND_IN, KIND_OUT, VEHICLE_TONS, GATE_ZONES, TIME_SLOTS
 
@@ -300,7 +300,7 @@ def page_schedule(con):
         except ValueError:
             drop_fi = 0
         start_fi = max(0, drop_fi - drag_index)
-        date_str = str(st.session_state.get("sched_current_date", date.today()))
+        date_str = str(st.session_state.get("sched_current_date", today_kst()))
         if req_id:
             _gres = (con.table("schedules").select("*")
                      .eq("req_id", req_id).eq("schedule_date", date_str)
@@ -363,7 +363,7 @@ def page_schedule(con):
             start_fi = TIME_SLOTS.index(move_slot)
         except ValueError:
             start_fi = 0
-        _mv_date = str(st.session_state.get("sched_current_date", date.today()))
+        _mv_date = str(st.session_state.get("sched_current_date", today_kst()))
         # 선택된 슬롯의 req_id 수집 (연속 그룹 이동)
         _mv_req_ids = [s.get("req_id") for s in sel_list if s.get("req_id")]
         if _mv_req_ids:
@@ -404,7 +404,7 @@ def page_schedule(con):
 
     # 세션 초기화
     for key, default in [
-        ("sched_current_date",     date.today()),
+        ("sched_current_date",     today_kst()),
         ("sched_sel_in_slots",     []),
         ("sched_sel_out_slots",    []),
         ("sched_last_kind",        "반입"),
@@ -421,8 +421,8 @@ def page_schedule(con):
 
     current_date = st.session_state["sched_current_date"]
     # 세션에 저장된 날짜가 오늘보다 과거면 오늘로 자동 보정
-    if current_date < date.today():
-        current_date = date.today()
+    if current_date < today_kst():
+        current_date = today_kst()
         st.session_state["sched_current_date"] = current_date
     schedule_sync_from_requests(con, project_id)
     date_str = current_date.isoformat()
@@ -569,7 +569,7 @@ def page_schedule(con):
         with st.container(key="sched_nav_row"):
             nav1, nav2, nav3 = st.columns([1, 1.75, 1])
             with nav1:
-                today = date.today()
+                today = today_kst()
                 _adv = int(settings_get(con, "schedule_advance_days", "2"))
                 max_date = today + timedelta(days=90) if is_admin else _max_date_skip_sunday(today, _adv)
                 if st.button("‹ 전일", key="sched_prev", use_container_width=True,
@@ -584,7 +584,7 @@ def page_schedule(con):
                     st.session_state.pop("sched_edit_from_home", None)
                     st.rerun()
             with nav2:
-                today = date.today()
+                today = today_kst()
                 _adv = int(settings_get(con, "schedule_advance_days", "2"))
                 max_date = today + timedelta(days=90) if is_admin else _max_date_skip_sunday(today, _adv)
                 _wd_list = ["월", "화", "수", "목", "금", "토", "일"]
@@ -626,7 +626,7 @@ def page_schedule(con):
                     st.rerun()
             with nav3:
                 _adv = int(settings_get(con, "schedule_advance_days", "2"))
-                max_date = date.today() + timedelta(days=90) if is_admin else _max_date_skip_sunday(date.today(), _adv)
+                max_date = today_kst() + timedelta(days=90) if is_admin else _max_date_skip_sunday(today_kst(), _adv)
                 if st.button("익일 ›", key="sched_next", use_container_width=True,
                              disabled=(current_date >= max_date)):
                     new_date = current_date + timedelta(days=1)
@@ -670,7 +670,7 @@ def page_schedule(con):
             _tocc: dict = {t: set() for t in _tz_opts_card}
             _tcomp: dict = {t: [] for t in _tz_opts_card}   # 터미널별 업체명 목록
             _overdue_terminals: set = set()   # 2일 초과 점유 터미널
-            _ovd_threshold = (date.today() - timedelta(days=2)).isoformat()
+            _ovd_threshold = (today_kst() - timedelta(days=2)).isoformat()
             _occ_res = (con.table("requests")
                         .select("id,gate,company_name,created_at")
                         .eq("project_id", project_id).eq("date", date_str)
