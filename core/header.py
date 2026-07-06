@@ -6,6 +6,7 @@ from supabase import Client
 from config import APP_VERSION, DEFAULT_SITE_NAME
 from db.models import settings_get
 from shared.timing import measure
+from shared.helpers import today_kst
 
 
 @measure("core.ui_header")
@@ -17,7 +18,7 @@ def ui_header(con: Client):
     user_role = st.session_state.get("USER_ROLE", "")
     is_admin = st.session_state.get("IS_ADMIN", False)
     project_id = st.session_state.get("PROJECT_ID", "")
-    today = date.today().isoformat()
+    today = today_kst().isoformat()
 
     # 한글 폰트 등록 진단 — 관리자에게만 노출
     if is_admin:

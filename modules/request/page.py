@@ -8,7 +8,7 @@ from supabase import Client
 from config import KIND_IN, KIND_OUT, RISK_LEVELS
 from modules.request.crud import req_insert, req_get
 from modules.approval.crud import approvals_create_default
-from shared.helpers import req_display_id, phone_input
+from shared.helpers import req_display_id, phone_input, today_kst
 from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, default_days
 
 
@@ -66,7 +66,7 @@ def page_request(con: Client):
         item_name = st.text_input("자재명*")
     c1, c2 = st.columns(2)
     with c1:
-        date_val = st.date_input("일자*", value=date.today())
+        date_val = st.date_input("일자*", value=today_kst())
     with c2:
         kind_display = st.selectbox("구분*", ["반입", "반출"])
     kind_val = KIND_IN if kind_display == "반입" else KIND_OUT
