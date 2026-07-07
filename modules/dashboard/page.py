@@ -629,18 +629,12 @@ def page_dashboard(con: Client):
     site_name  = settings_get(con, "site_name", "현장명")
 
     # ── 날짜 상태 ─────────────────────────────────────────────────────────
-    # "dash_date" = 화살표/오늘 버튼이 쓰는 backing store (위젯 key와 분리)
-    # "dash_date_picker" = st.date_input 위젯 key
-    # Streamlit 규칙: 위젯 key를 외부에서 직접 수정하면 StreamlitAPIException 발생.
-    # 해결: backing store로 날짜를 관리하고, date_input은 value= 로만 받음.
-    #       캘린더 선택 → on_change 콜백에서 backing store 동기화.
+    # key= 없이 value= 만 사용 → 버튼이 dash_date를 바꾸면 value= 가 반영됨.
+    # 캘린더 직접 선택 시 반환값이 cur_date와 다르면 dash_date 동기화 후 rerun.
     today: date = today_kst()
     if "dash_date" not in st.session_state:
         st.session_state["dash_date"] = today
     cur_date: date = st.session_state["dash_date"]
-
-    def _sync_picker():
-        st.session_state["dash_date"] = st.session_state["dash_date_picker"]
 
     # ── 날짜 네비게이션 ───────────────────────────────────────────────────
     with st.container(key="dash_nav"):
@@ -648,28 +642,23 @@ def page_dashboard(con: Client):
         with nc1:
             if st.button("◀◀", key="dash_prev_week", use_container_width=True, help="일주일 전"):
                 st.session_state["dash_date"] = cur_date - timedelta(days=7)
-                st.session_state["dash_date_picker"] = st.session_state["dash_date"]
                 st.rerun()
         with nc2:
             if st.button("◀", key="dash_prev_day", use_container_width=True, help="전날"):
                 st.session_state["dash_date"] = cur_date - timedelta(days=1)
-                st.session_state["dash_date_picker"] = st.session_state["dash_date"]
                 st.rerun()
         with nc3:
-            st.date_input(
-                "날짜", value=cur_date, key="dash_date_picker",
-                label_visibility="collapsed",
-                on_change=_sync_picker,
-            )
+            picked = st.date_input("날짜", value=cur_date, label_visibility="collapsed")
+            if picked != cur_date:
+                st.session_state["dash_date"] = picked
+                st.rerun()
         with nc4:
             if st.button("▶", key="dash_next_day", use_container_width=True, help="다음날"):
                 st.session_state["dash_date"] = cur_date + timedelta(days=1)
-                st.session_state["dash_date_picker"] = st.session_state["dash_date"]
                 st.rerun()
         with nc5:
             if st.button("▶▶", key="dash_next_week", use_container_width=True, help="일주일 후"):
                 st.session_state["dash_date"] = cur_date + timedelta(days=7)
-                st.session_state["dash_date_picker"] = st.session_state["dash_date"]
                 st.rerun()
         with nc6:
             is_today = (cur_date == today)
@@ -682,7 +671,6 @@ def page_dashboard(con: Client):
                 help="이미 오늘입니다" if is_today else "오늘로 이동",
             ):
                 st.session_state["dash_date"] = today
-                st.session_state["dash_date_picker"] = today
                 st.rerun()
 
     # ── 데이터 로드 ───────────────────────────────────────────────────────
