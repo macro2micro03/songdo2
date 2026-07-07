@@ -648,10 +648,12 @@ def page_dashboard(con: Client):
         with nc1:
             if st.button("◀◀", key="dash_prev_week", use_container_width=True, help="일주일 전"):
                 st.session_state["dash_date"] = cur_date - timedelta(days=7)
+                st.session_state["dash_date_picker"] = st.session_state["dash_date"]
                 st.rerun()
         with nc2:
             if st.button("◀", key="dash_prev_day", use_container_width=True, help="전날"):
                 st.session_state["dash_date"] = cur_date - timedelta(days=1)
+                st.session_state["dash_date_picker"] = st.session_state["dash_date"]
                 st.rerun()
         with nc3:
             st.date_input(
@@ -662,10 +664,12 @@ def page_dashboard(con: Client):
         with nc4:
             if st.button("▶", key="dash_next_day", use_container_width=True, help="다음날"):
                 st.session_state["dash_date"] = cur_date + timedelta(days=1)
+                st.session_state["dash_date_picker"] = st.session_state["dash_date"]
                 st.rerun()
         with nc5:
             if st.button("▶▶", key="dash_next_week", use_container_width=True, help="일주일 후"):
                 st.session_state["dash_date"] = cur_date + timedelta(days=7)
+                st.session_state["dash_date_picker"] = st.session_state["dash_date"]
                 st.rerun()
         with nc6:
             is_today = (cur_date == today)
@@ -678,6 +682,7 @@ def page_dashboard(con: Client):
                 help="이미 오늘입니다" if is_today else "오늘로 이동",
             ):
                 st.session_state["dash_date"] = today
+                st.session_state["dash_date_picker"] = today
                 st.rerun()
 
     # ── 데이터 로드 ───────────────────────────────────────────────────────
