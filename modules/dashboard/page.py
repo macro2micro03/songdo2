@@ -675,7 +675,7 @@ def page_dashboard(con: Client):
             is_today = (cur_date == today)
             if st.button(
                 "오늘",
-                key="dash_today" if not is_today else "dash_today_disabled",
+                key="dash_today",
                 use_container_width=True,
                 type="primary" if not is_today else "secondary",
                 disabled=is_today,
