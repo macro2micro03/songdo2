@@ -36,7 +36,7 @@ HAEYEOK_BLOCKING = {"PENDING_APPROVAL", "APPROVED", "EXECUTING"}
 
 
 def haeyeok_slots() -> List[str]:
-    out, t = [], 6 * 60
+    out, t = [], 5 * 60  # TIME_SLOTS와 동일하게 05:00부터
     while t < 18 * 60:
         out.append(f"{t // 60:02d}:{t % 60:02d}")
         t += 30
