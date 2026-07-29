@@ -644,13 +644,15 @@ def page_schedule(con):
         schedules = schedule_list_by_date(con, project_id, date_str, booking_zone=current_zone)
 
         # schedules에 requester_name 첨부 (본인 예약 식별용)
-        _req_ids = [s["req_id"] for s in schedules if s.get("req_id")]
+        _req_ids = list({s["req_id"] for s in schedules if s.get("req_id")})
+        _rmap = {}
         if _req_ids:
-            _rres = (con.table("requests").select("id,requester_name")
-                     .in_("id", _req_ids).execute())
-            _rmap = {r["id"]: (r["requester_name"] or "") for r in (_rres.data or [])}
-        else:
-            _rmap = {}
+            try:
+                _rres = (con.table("requests").select("id,requester_name")
+                         .in_("id", _req_ids).execute())
+                _rmap = {r["id"]: (r["requester_name"] or "") for r in (_rres.data or [])}
+            except Exception:
+                pass
         for s in schedules:
             s["requester_name"] = _rmap.get(s.get("req_id", ""), "")
 
