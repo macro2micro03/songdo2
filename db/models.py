@@ -10,21 +10,18 @@ from shared.helpers import now_str
 
 # ── Settings ──────────────────────────────────────────────────────────
 
-import streamlit as st
-
 def _settings_load(sb: Client) -> Dict[str, str]:
-    """DB에서 settings 전체를 한 번에 가져와 dict로 반환."""
     res = sb.table("settings").select("key,value").execute()
     return {r["key"]: r["value"] for r in (res.data or [])}
 
 def settings_get_all(sb: Client) -> Dict[str, str]:
-    """rerun 당 1회 DB 조회 후 session_state에 캐시."""
+    import streamlit as st
     if "_settings_cache" not in st.session_state:
         st.session_state["_settings_cache"] = _settings_load(sb)
     return st.session_state["_settings_cache"]
 
 def settings_invalidate() -> None:
-    """settings_set 후 캐시 무효화."""
+    import streamlit as st
     st.session_state.pop("_settings_cache", None)
 
 @measure("models.settings_get")
