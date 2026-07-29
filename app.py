@@ -191,10 +191,10 @@ def page_home(con):
 
     st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
 
-    # 전체 요청 목록 (진행 중인 건 우선)
-    all_reqs = req_list(con, limit=100)
+    # 전체 요청 목록 — DB에서 오늘 이후 + DONE 제외로 바로 필터링
     today = today_kst().isoformat()
-    active_reqs = [r for r in all_reqs if r.get("status") not in ("DONE",) and (not r.get("date") or r.get("date") >= today)]
+    active_reqs = [r for r in req_list(con, limit=200, date_gte=today)
+                   if r.get("status") not in ("DONE",)]
     active_reqs = sorted(active_reqs, key=lambda r: (r.get("date", ""), r.get("kind", ""), r.get("booking_zone", ""), r.get("time_from", "")))
 
     STATUS_LABEL = {

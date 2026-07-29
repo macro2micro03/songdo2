@@ -87,7 +87,8 @@ def req_list(con: Client,
              status: Optional[str] = None,
              kind: Optional[str] = None,
              limit: int = 300,
-             project_id: Optional[str] = None) -> List[Dict[str, Any]]:
+             project_id: Optional[str] = None,
+             date_gte: Optional[str] = None) -> List[Dict[str, Any]]:
     pid = project_id or st.session_state.get("PROJECT_ID", "")
     q = con.table("requests").select("*")
     if pid:
@@ -96,6 +97,8 @@ def req_list(con: Client,
         q = q.eq("status", status)
     if kind:
         q = q.eq("kind", kind)
+    if date_gte:
+        q = q.gte("date", date_gte)
     q = q.order("created_at", desc=True).limit(limit)
     rows = q.execute().data or []
     return _compute_day_seq(rows)

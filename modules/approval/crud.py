@@ -2,6 +2,7 @@
 
 from shared.timing import measure
 import json
+import time
 import uuid
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -10,6 +11,14 @@ from supabase import Client
 from shared.helpers import now_str
 from db.models import settings_get
 from modules.request.crud import req_update_status
+
+_INBOX_TTL = 15  # 초
+
+def _clear_inbox_cache() -> None:
+    import streamlit as st
+    for k in list(st.session_state.keys()):
+        if k.startswith("_inbox_cache_") or k.startswith("_inbox_ts_"):
+            del st.session_state[k]
 
 
 def routing_get(con: Client) -> Dict[str, List[str]]:
@@ -33,22 +42,26 @@ def approvals_create_default(con: Client, rid: str, kind: str) -> None:
 
 
 @measure("crud.approvals_inbox")
-
-
 def approvals_inbox(
     con: Client, user_role: str, is_admin: bool,
     project_id: str = "",
+    force_refresh: bool = False,
 ) -> List[Dict[str, Any]]:
     """Get pending approvals for the current user's inbox."""
     import streamlit as st
     pid = project_id or st.session_state.get("PROJECT_ID", "")
+    _ck = f"_inbox_cache_{pid}_{user_role}"
+    _tk = f"_inbox_ts_{pid}_{user_role}"
+    _now = time.monotonic()
+    if not force_refresh and _ck in st.session_state and _now - st.session_state.get(_tk, 0) < _INBOX_TTL:
+        return st.session_state[_ck]
     try:
         res = con.rpc("rpc_approvals_inbox", {
             "p_project_id": pid,
             "p_user_role": user_role,
             "p_is_admin": is_admin,
         }).execute()
-        return res.data or []
+        result = res.data or []
     except Exception:
         # fallback — manual two-step fetch
         ap = (con.table("approvals")
@@ -57,11 +70,10 @@ def approvals_inbox(
               .eq("requests.project_id", pid)
               .execute())
         rows = ap.data or []
-        # filter to first PENDING step per req
         by_req: Dict[str, List[Dict[str, Any]]] = {}
         for r in rows:
             by_req.setdefault(r["req_id"], []).append(r)
-        out: List[Dict[str, Any]] = []
+        result: List[Dict[str, Any]] = []
         for rid, items in by_req.items():
             min_step = min(it["step_no"] for it in items)
             for it in items:
@@ -75,10 +87,12 @@ def approvals_inbox(
                            "time_from", "time_to", "gate")})
                 it["req_status"] = nested.get("status")
                 it["_created_at"] = nested.get("created_at", "")
-                out.append(it)
-        out.sort(key=lambda r: (r.pop("_created_at", "") or "", r.get("step_no", 0)),
-                 reverse=True)
-        return out
+                result.append(it)
+        result.sort(key=lambda r: (r.pop("_created_at", "") or "", r.get("step_no", 0)),
+                    reverse=True)
+    st.session_state[_ck] = result
+    st.session_state[_tk] = time.monotonic()
+    return result
 
 
 @measure("crud.approvals_for_req")
@@ -118,6 +132,7 @@ def approval_mark(
         data = res.data or {}
         if isinstance(data, list):
             data = data[0] if data else {}
+        _clear_inbox_cache()
         return data.get("rid", ""), data.get("msg", "")
     except Exception:
         # fallback — manual update
@@ -143,7 +158,9 @@ def approval_mark(
             left = left_res.count or 0
             if left == 0:
                 req_update_status(con, rid, "APPROVED")
+                _clear_inbox_cache()
                 return rid, "최종 승인 완료"
+            _clear_inbox_cache()
             return rid, "승인 완료(다음 승인자 대기)"
         con.table("approvals").update({
             "status": "REJECTED",
@@ -153,4 +170,5 @@ def approval_mark(
             "signed_at": now_str(),
         }).eq("id", approval_id).execute()
         req_update_status(con, rid, "REJECTED")
+        _clear_inbox_cache()
         return rid, "반려 처리 완료"
