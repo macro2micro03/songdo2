@@ -121,6 +121,14 @@ def req_update_time(con: Client, rid: str, time_from: str, time_to: str) -> None
 
 def req_delete(con: Client, rid: str) -> None:
     """Delete a request and all associated records (cascade)."""
-    for tbl in ("approvals", "executions", "photos", "outputs", "schedules"):
-        con.table(tbl).delete().eq("req_id", rid).execute()
+    # schedules는 req_id 컬럼으로 연결되므로 별도 처리
+    try:
+        con.table("schedules").delete().eq("req_id", rid).execute()
+    except Exception:
+        pass
+    for tbl in ("approvals", "executions", "photos", "outputs"):
+        try:
+            con.table(tbl).delete().eq("req_id", rid).execute()
+        except Exception:
+            pass
     con.table("requests").delete().eq("id", rid).execute()
