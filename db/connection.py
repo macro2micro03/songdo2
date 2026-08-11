@@ -84,20 +84,16 @@ class _TimedSupabase:
 
 # ── Supabase client (singleton per Streamlit runtime) ─────────────────────
 
-@st.cache_resource
+@st.cache_resource(ttl=300)  # 5분마다 재연결 — 유휴 연결 끊김 방지
 def _raw_supabase() -> Client:
-    """Cached real Supabase client (singleton)."""
+    """Cached real Supabase client. TTL=300s so idle connections don't expire."""
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
 
 
 def get_supabase():
-    """Return Supabase client. Wrapped with timing proxy.
-
-    The proxy is zero-overhead when DEBUG_TIMING is disabled (it short-circuits
-    inside the timed_execute closure via shared.timing.is_enabled).
-    """
+    """Return Supabase client wrapped with timing proxy."""
     return _TimedSupabase(_raw_supabase())
 
 
