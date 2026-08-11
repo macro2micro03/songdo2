@@ -84,9 +84,9 @@ class _TimedSupabase:
 
 # ── Supabase client (singleton per Streamlit runtime) ─────────────────────
 
-@st.cache_resource(ttl=300)  # 5분마다 재연결 — 유휴 연결 끊김 방지
+@st.cache_resource
 def _raw_supabase() -> Client:
-    """Cached real Supabase client. TTL=300s so idle connections don't expire."""
+    """Cached real Supabase client (singleton)."""
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
@@ -95,6 +95,11 @@ def _raw_supabase() -> Client:
 def get_supabase():
     """Return Supabase client wrapped with timing proxy."""
     return _TimedSupabase(_raw_supabase())
+
+
+def reset_supabase_cache() -> None:
+    """Supabase 클라이언트 캐시만 초기화 (다른 캐시는 유지)."""
+    _raw_supabase.clear()
 
 
 def db_backend() -> str:

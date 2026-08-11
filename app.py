@@ -578,9 +578,10 @@ def main():
         else:
             st.warning(f"알 수 없는 페이지: {active_page}")
     except Exception as _e:
-        # httpx 유휴 연결 끊김 → 캐시 초기화 후 자동 재시도
+        # httpx 유휴 연결 끊김 → Supabase 클라이언트만 초기화 후 자동 재시도
         if "RemoteProtocolError" in type(_e).__name__ or "RemoteProtocolError" in repr(_e):
-            st.cache_resource.clear()
+            from db.connection import reset_supabase_cache
+            reset_supabase_cache()
             st.rerun()
         raise
 
