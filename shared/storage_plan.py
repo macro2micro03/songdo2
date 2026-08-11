@@ -9,12 +9,16 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from supabase import Client
 
 from db.models import settings_get
+
+_DEFAULT_DAYS_TTL = 300   # settings는 자주 안 바뀜 — 5분
+_STORAGE_ROWS_TTL = 30    # 점유 현황 — 30초
 
 
 # 점유로 치는 요청 상태 (대기·승인·실행·완료/보관중). 반려 제외.
@@ -122,11 +126,19 @@ def ground_zones(con: Client) -> List[str]:
 
 
 def default_days(con: Client) -> int:
-    """기본 저장 기간(일). 관리자 설정."""
+    """기본 저장 기간(일). 관리자 설정. session_state 캐시(5분)."""
+    import streamlit as st
+    _ck, _tk = "_default_days_val", "_default_days_ts"
+    _now = time.monotonic()
+    if _ck in st.session_state and _now - st.session_state.get(_tk, 0) < _DEFAULT_DAYS_TTL:
+        return st.session_state[_ck]
     try:
-        return max(1, int(settings_get(con, "storage_default_days", "14")))
+        val = max(1, int(settings_get(con, "storage_default_days", "14")))
     except Exception:
-        return 14
+        val = 14
+    st.session_state[_ck] = val
+    st.session_state[_tk] = _now
+    return val
 
 
 # ── 날짜 유틸 ─────────────────────────────────────────────────────────
@@ -170,7 +182,14 @@ def _eff_period(r: Dict[str, Any], ddays: int) -> Optional[tuple]:
 
 
 def _storage_rows(con: Client, project_id: str) -> List[Dict[str, Any]]:
-    """점유로 칠 반입(IN) 요청 — gate 기준 유효터미널 + 다중일 기간."""
+    """점유로 칠 반입(IN) 요청 — gate 기준 유효터미널 + 다중일 기간. session_state 캐시(30초)."""
+    import streamlit as st
+    _ck = f"_storage_rows_{project_id}"
+    _tk = f"_storage_rows_ts_{project_id}"
+    _now = time.monotonic()
+    if _ck in st.session_state and _now - st.session_state.get(_tk, 0) < _STORAGE_ROWS_TTL:
+        return st.session_state[_ck]
+
     ddays = default_days(con)
     res = (con.table("requests")
            .select("id,item_name,company_name,kind,status,gate,date,created_at,"
@@ -191,6 +210,9 @@ def _storage_rows(con: Client, project_id: str) -> List[Dict[str, Any]]:
         if not per:
             continue
         out.append({**r, "_term": term, "_start": per[0], "_end": per[1]})
+
+    st.session_state[_ck] = out
+    st.session_state[_tk] = _now
     return out
 
 

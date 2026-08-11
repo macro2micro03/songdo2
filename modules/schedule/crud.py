@@ -1,10 +1,13 @@
 """Schedule CRUD operations."""
+import time
 from shared.timing import measure
 from typing import List, Dict, Any, Optional
 
 from supabase import Client
 
 from shared.helpers import now_str, new_id
+
+_SYNC_TTL = 60  # schedule_sync_from_requests 최소 실행 간격(초)
 
 
 @measure("crud.schedule_insert")
@@ -88,8 +91,15 @@ def schedule_sync_from_requests(con: Client, project_id):
     """Sync schedule entries from existing approved requests (auto-populate).
 
     For each approved request that does not yet have a corresponding schedule
-    entry, create one automatically.
+    entry, create one automatically. 60초 이내 재호출은 스킵.
     """
+    import streamlit as st
+    _tk = f"_sched_sync_ts_{project_id}"
+    _now = time.monotonic()
+    if _now - st.session_state.get(_tk, 0) < _SYNC_TTL:
+        return
+    st.session_state[_tk] = _now
+
     req_res = (con.table("requests").select("*")
                .eq("project_id", project_id)
                .in_("status", ["PENDING_APPROVAL", "APPROVED"])
