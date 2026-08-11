@@ -570,12 +570,19 @@ def main():
         )
         st.session_state["_last_logged_page"] = active_page
 
-    if active_page == "홈":
-        page_home(con)
-    elif active_page in PAGE_ROUTER:
-        PAGE_ROUTER[active_page](con)
-    else:
-        st.warning(f"알 수 없는 페이지: {active_page}")
+    try:
+        if active_page == "홈":
+            page_home(con)
+        elif active_page in PAGE_ROUTER:
+            PAGE_ROUTER[active_page](con)
+        else:
+            st.warning(f"알 수 없는 페이지: {active_page}")
+    except Exception as _e:
+        # httpx 유휴 연결 끊김 → 캐시 초기화 후 자동 재시도
+        if "RemoteProtocolError" in type(_e).__name__ or "RemoteProtocolError" in repr(_e):
+            st.cache_resource.clear()
+            st.rerun()
+        raise
 
     # ── DEBUG_TIMING: show summary in sidebar (no-op when disabled) ──
     render_panel()
