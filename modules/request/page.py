@@ -9,7 +9,10 @@ from config import KIND_IN, KIND_OUT, RISK_LEVELS
 from modules.request.crud import req_insert, req_get
 from modules.approval.crud import approvals_create_default
 from shared.helpers import req_display_id, phone_input, today_kst
-from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, default_days
+from shared.storage_plan import (
+    terminals_b1, terminals_b2, occupancy_on, default_days,
+    ground_zones, haeyeok_booked_slots, haeyeok_slots, slot_end,
+)
 
 
 def _occ_grid_html(terminals, occ, selected=None, max_days: int = 0) -> str:
@@ -57,6 +60,8 @@ def _time_picker(key_prefix: str) -> tuple:
 def page_request(con: Client):
     st.markdown("### 📝 요청 등록")
 
+    project_id = st.session_state.get("PROJECT_ID", "")
+
     # 그룹1 - 기본정보
     st.markdown("**📋 기본 정보**")
     c1, c2 = st.columns(2)
@@ -71,13 +76,33 @@ def page_request(con: Client):
         kind_display = st.selectbox("구분*", ["반입", "반출"])
     kind_val = KIND_IN if kind_display == "반입" else KIND_OUT
 
+    # 하역존 선택
+    _zones = ground_zones(con)
+    c1, c2 = st.columns(2)
+    with c1:
+        booking_zone = st.selectbox("하역존*", options=_zones, key="req_booking_zone")
+
     time_from_str, time_to_str = _time_picker("req_time")
+
+    # 선택한 날짜·존·구분의 기존 예약 현황 표시
+    _date_str = str(date_val)
+    _booked = haeyeok_booked_slots(con, project_id, _date_str, booking_zone, kind_val)
+    if _booked:
+        _slots_all = haeyeok_slots()
+        _rows = []
+        for s in _slots_all:
+            if s in _booked:
+                info = _booked[s]
+                _rows.append(f"🔴 **{s}~{slot_end(s)}** — {info.get('company','')} ({info.get('item','')})")
+        if _rows:
+            with st.expander(f"⚠️ {booking_zone}존 {_date_str} 기존 예약 현황 ({len(_booked)}슬롯 점유)", expanded=False):
+                for r in _rows:
+                    st.markdown(r)
 
     # 보관 터미널 점유 현황 (참조용)
     with st.expander("📦 보관 터미널 점유 현황 (B1F · B2F)"):
-        _project_id = st.session_state.get("PROJECT_ID", "")
         _occ_date = str(date_val)
-        _occ = occupancy_on(con, _project_id, _occ_date)
+        _occ = occupancy_on(con, project_id, _occ_date)
         _max_days = default_days(con)
         st.caption(f"📅 {_occ_date} 기준 점유 현황 (빨강=점유, 초록=빈곳)")
         st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:6px 0 6px'>B1F</div>", unsafe_allow_html=True)
@@ -160,9 +185,29 @@ def page_request(con: Client):
             st.error("시간을 선택하세요. (시작 → 종료 순으로 선택)")
             return
 
+        # 동일 날짜·존·구분 시간 슬롯 충돌 체크
+        _slots_all = haeyeok_slots()
+        _selected_slots = [s for s in _slots_all if time_from_str <= s < time_to_str]
+        _booked_now = haeyeok_booked_slots(
+            con, project_id, str(date_val), booking_zone, kind_val
+        )
+        _conflict = {s: _booked_now[s] for s in _selected_slots if s in _booked_now}
+        if _conflict:
+            first = next(iter(_conflict.values()))
+            _times = ", ".join(
+                f"{s}~{slot_end(s)}" for s in sorted(_conflict)
+            )
+            st.error(
+                f"⛔ 동일 시간대 중복 신청 불가\n\n"
+                f"**{booking_zone}존** {_times} 슬롯이 "
+                f"**{first.get('company','')}** ({first.get('item','')})의 신청과 겹칩니다.\n\n"
+                f"시간 또는 존을 변경하세요."
+            )
+            return
+
         rid = req_insert(con, dict(
             kind=kind_val,
-            project_id=st.session_state.get("PROJECT_ID", ""),
+            project_id=project_id,
             company_name=company_name,
             item_name=item_name,
             item_type="",
@@ -170,6 +215,7 @@ def page_request(con: Client):
             date=str(date_val),
             time_from=time_from_str,
             time_to=time_to_str,
+            booking_zone=booking_zone,
             gate=gate,
             vehicle_type=vehicle_type,
             vehicle_ton=vehicle_ton,
