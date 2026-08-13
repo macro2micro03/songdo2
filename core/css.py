@@ -83,6 +83,163 @@ def inject_css():
       --line-height-normal: 1.5;
       --line-height-relaxed: 1.7;
     }
+
+    /* ── 다크 모드 토큰 재정의 ──────────────────────────────────────────
+       Streamlit 토글: [data-theme="dark"]
+       OS 시스템: @media (prefers-color-scheme: dark)
+       둘 다 처리해 어느 경로로 다크 모드가 켜져도 대응한다.
+    ─────────────────────────────────────────────────────────────────── */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg-light:   #0f172a;
+        --bg-card:    #1e293b;
+        --bg-hover:   #334155;
+        --bg-disabled:#334155;
+        --text-primary:   #f1f5f9;
+        --text-secondary: #cbd5e1;
+        --text-muted:     #94a3b8;
+        --text-disabled:  #475569;
+        --text-inverse:   #0f172a;
+        --border-light:   #334155;
+        --border-primary: #475569;
+        --border-dark:    #64748b;
+        --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.4);
+        --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.5),0 1px 2px -1px rgba(0,0,0,0.4);
+        --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5),0 2px 4px -2px rgba(0,0,0,0.4);
+        --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5),0 4px 6px -4px rgba(0,0,0,0.4);
+      }
+    }
+    [data-theme="dark"] {
+      --bg-light:   #0f172a;
+      --bg-card:    #1e293b;
+      --bg-hover:   #334155;
+      --bg-disabled:#334155;
+      --text-primary:   #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted:     #94a3b8;
+      --text-disabled:  #475569;
+      --text-inverse:   #0f172a;
+      --border-light:   #334155;
+      --border-primary: #475569;
+      --border-dark:    #64748b;
+      --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.4);
+      --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.5),0 1px 2px -1px rgba(0,0,0,0.4);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5),0 2px 4px -2px rgba(0,0,0,0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5),0 4px 6px -4px rgba(0,0,0,0.4);
+    }
+
+    /* 다크 모드: 하드코딩된 색상 오버라이드 */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #0d1526 100%);
+      }
+      :root:not([data-theme="light"]) .kpi .box {
+        background: linear-gradient(135deg,rgba(30,41,59,0.95),rgba(15,23,42,0.95));
+        border-color: rgba(59,130,246,0.25);
+      }
+      :root:not([data-theme="light"]) [data-testid="stSuccess"] {
+        background: linear-gradient(135deg,#14532d,#166534);
+        color: #86efac; border-color: #16a34a;
+      }
+      :root:not([data-theme="light"]) [data-testid="stError"] {
+        background: linear-gradient(135deg,#450a0a,#7f1d1d);
+        color: #fca5a5; border-color: #dc2626;
+      }
+      :root:not([data-theme="light"]) [data-testid="stWarning"] {
+        background: linear-gradient(135deg,#451a03,#7c2d12);
+        color: #fde68a; border-color: #d97706;
+      }
+      :root:not([data-theme="light"]) [data-testid="stInfo"] {
+        background: linear-gradient(135deg,#1e3a5f,#1e3a8a);
+        color: #93c5fd; border-color: #3b82f6;
+      }
+      :root:not([data-theme="light"]) .status-pending {
+        background: linear-gradient(135deg,#451a03,#7c2d12);
+        color: #fde68a; border-color: #d97706;
+      }
+      :root:not([data-theme="light"]) .status-approved {
+        background: linear-gradient(135deg,#14532d,#166534);
+        color: #86efac; border-color: #16a34a;
+      }
+      :root:not([data-theme="light"]) .status-rejected {
+        background: linear-gradient(135deg,#450a0a,#7f1d1d);
+        color: #fca5a5; border-color: #dc2626;
+      }
+      :root:not([data-theme="light"]) [data-baseweb="input"],
+      :root:not([data-theme="light"]) [data-baseweb="textarea"],
+      :root:not([data-theme="light"]) [data-baseweb="select"] > div:first-child {
+        background: #1e293b !important;
+      }
+      :root:not([data-theme="light"]) .stTextInput > div > div > input,
+      :root:not([data-theme="light"]) .stNumberInput > div > div > input,
+      :root:not([data-theme="light"]) .stTextArea > div > div > textarea {
+        background: #1e293b; color: #f1f5f9;
+      }
+      :root:not([data-theme="light"]) [data-testid="stSelectboxVirtualDropdown"] li[aria-selected="true"] > div {
+        background-color: #1e3a8a !important; color: #bfdbfe !important;
+      }
+      :root:not([data-theme="light"]) [data-testid="stSidebar"] .stButton > button:not([kind="primary"]):hover {
+        background: #1e3a8a !important; color: #bfdbfe !important; border-color: #2563eb !important;
+      }
+      :root:not([data-theme="light"]) [class*="st-key-sel_proj_"] button {
+        background: #1e293b !important; border-color: #334155 !important;
+      }
+    }
+    [data-theme="dark"] .stApp {
+      background: linear-gradient(135deg, #0f172a 0%, #0d1526 100%);
+    }
+    [data-theme="dark"] .kpi .box {
+      background: linear-gradient(135deg,rgba(30,41,59,0.95),rgba(15,23,42,0.95));
+      border-color: rgba(59,130,246,0.25);
+    }
+    [data-theme="dark"] [data-testid="stSuccess"] {
+      background: linear-gradient(135deg,#14532d,#166534);
+      color: #86efac; border-color: #16a34a;
+    }
+    [data-theme="dark"] [data-testid="stError"] {
+      background: linear-gradient(135deg,#450a0a,#7f1d1d);
+      color: #fca5a5; border-color: #dc2626;
+    }
+    [data-theme="dark"] [data-testid="stWarning"] {
+      background: linear-gradient(135deg,#451a03,#7c2d12);
+      color: #fde68a; border-color: #d97706;
+    }
+    [data-theme="dark"] [data-testid="stInfo"] {
+      background: linear-gradient(135deg,#1e3a5f,#1e3a8a);
+      color: #93c5fd; border-color: #3b82f6;
+    }
+    [data-theme="dark"] .status-pending {
+      background: linear-gradient(135deg,#451a03,#7c2d12);
+      color: #fde68a; border-color: #d97706;
+    }
+    [data-theme="dark"] .status-approved {
+      background: linear-gradient(135deg,#14532d,#166534);
+      color: #86efac; border-color: #16a34a;
+    }
+    [data-theme="dark"] .status-rejected {
+      background: linear-gradient(135deg,#450a0a,#7f1d1d);
+      color: #fca5a5; border-color: #dc2626;
+    }
+    [data-theme="dark"] [data-baseweb="input"],
+    [data-theme="dark"] [data-baseweb="textarea"],
+    [data-theme="dark"] [data-baseweb="select"] > div:first-child {
+      background: #1e293b !important;
+    }
+    [data-theme="dark"] .stTextInput > div > div > input,
+    [data-theme="dark"] .stNumberInput > div > div > input,
+    [data-theme="dark"] .stTextArea > div > div > textarea {
+      background: #1e293b; color: #f1f5f9;
+    }
+    [data-theme="dark"] [data-testid="stSelectboxVirtualDropdown"] li[aria-selected="true"] > div {
+      background-color: #1e3a8a !important; color: #bfdbfe !important;
+    }
+    [data-theme="dark"] [data-testid="stSidebar"] .stButton > button:not([kind="primary"]):hover {
+      background: #1e3a8a !important; color: #bfdbfe !important; border-color: #2563eb !important;
+    }
+    [data-theme="dark"] [class*="st-key-sel_proj_"] button {
+      background: #1e293b !important; border-color: #334155 !important;
+    }
+
     html, body, [class*="css"] {
       font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
       color: var(--text-primary);
