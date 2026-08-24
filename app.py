@@ -284,19 +284,23 @@ def page_home(con):
                 if ecol and can_edit:
                     with ecol:
                         if st.button("수정", key=f"home_edit_{rid}", use_container_width=True):
-                            from modules.schedule.crud import schedule_by_req_id
-                            from datetime import date as _date
-                            sched = schedule_by_req_id(con, rid)
-                            if sched:
-                                sched_date = sched.get("schedule_date", today_kst().isoformat())
-                                import datetime
+                            import datetime
+                            _sr = (con.table("schedules").select("*")
+                                   .eq("req_id", rid).order("time_from").execute())
+                            all_scheds = _sr.data or []
+                            if not all_scheds:
+                                from modules.schedule.crud import schedule_by_req_id
+                                _s = schedule_by_req_id(con, rid)
+                                all_scheds = [_s] if _s else []
+                            if all_scheds:
+                                sched_date = all_scheds[0].get("schedule_date", today_kst().isoformat())
                                 st.session_state["sched_current_date"] = datetime.date.fromisoformat(sched_date)
                                 if is_admin:
-                                    st.session_state["admin_sel_sched_ids"]  = [sched["id"]]
-                                    st.session_state["admin_sel_sched_list"] = [sched]
-                                    st.session_state["admin_sel_sched_kind"] = sched.get("kind", "IN")
+                                    st.session_state["admin_sel_sched_ids"]  = [s["id"] for s in all_scheds]
+                                    st.session_state["admin_sel_sched_list"] = all_scheds
+                                    st.session_state["admin_sel_sched_kind"] = all_scheds[0].get("kind", "IN")
                                 else:
-                                    st.session_state["user_sel_sched_list"] = [sched]
+                                    st.session_state["user_sel_sched_list"] = all_scheds
                             st.session_state["sched_sel_in_slots"]   = []
                             st.session_state["sched_sel_out_slots"]  = []
                             st.session_state["sched_edit_from_home"] = True
