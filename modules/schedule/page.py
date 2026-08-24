@@ -87,6 +87,30 @@ def _insert_extra_slots(con, project_id, sel_list, add_slots, kind_val, gate,
     return n_added
 
 
+def _shift_group_slots(con, group, start_fi):
+    """연속 슬롯 그룹을 start_fi 부터 재배치.
+
+    schedules_req_slot_uniq (req_id, time_from, time_to) 유니크 인덱스와
+    중간 상태에서 충돌하지 않도록, 뒤로 이동할 때는 마지막 행부터,
+    앞으로 이동할 때는 첫 행부터 갱신한다.
+    """
+    if not group:
+        return
+    try:
+        cur_fi = TIME_SLOTS.index(group[0].get("time_from", ""))
+    except ValueError:
+        cur_fi = start_fi
+    idxs = range(len(group))
+    if start_fi > cur_fi:          # 뒤로 이동 → 뒤에서부터
+        idxs = reversed(list(idxs))
+    for i in idxs:
+        nfi = start_fi + i
+        if nfi + 1 >= len(TIME_SLOTS):
+            continue
+        schedule_update(con, group[i]["id"],
+                        time_from=TIME_SLOTS[nfi], time_to=TIME_SLOTS[nfi + 1])
+
+
 def _consecutive_toggle(slots: list, new_slot: str) -> list:
     """슬롯 선택/해제 — 항상 연속 구간 유지.
     - 미선택 슬롯 클릭: 기존 범위와 새 슬롯 사이를 모두 채워 확장
@@ -306,12 +330,7 @@ def page_schedule(con):
                      .eq("req_id", req_id).eq("schedule_date", date_str)
                      .order("time_from").execute())
             group = _gres.data or []
-            for i, sched in enumerate(group):
-                nfi = start_fi + i
-                if nfi + 1 >= len(TIME_SLOTS):
-                    break
-                schedule_update(con, sched["id"],
-                                time_from=TIME_SLOTS[nfi], time_to=TIME_SLOTS[nfi + 1])
+            _shift_group_slots(con, group, start_fi)
             if group:
                 actual_end = min(start_fi + len(group), len(TIME_SLOTS) - 1)
                 con.table("requests").update({
@@ -377,12 +396,7 @@ def page_schedule(con):
                           .eq("req_id", _req_id).eq("schedule_date", _mv_date)
                           .order("time_from").execute())
                 _group = _gres2.data or []
-                for i, _sched in enumerate(_group):
-                    nfi = start_fi + i
-                    if nfi + 1 >= len(TIME_SLOTS):
-                        break
-                    schedule_update(con, _sched["id"],
-                                    time_from=TIME_SLOTS[nfi], time_to=TIME_SLOTS[nfi + 1])
+                _shift_group_slots(con, _group, start_fi)
                 if _group:
                     _actual_end = min(start_fi + len(_group), len(TIME_SLOTS) - 1)
                     con.table("requests").update({
