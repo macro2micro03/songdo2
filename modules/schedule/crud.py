@@ -98,19 +98,30 @@ def schedule_sync_from_requests(con: Client, project_id):
     _now = time.monotonic()
     if _now - st.session_state.get(_tk, 0) < _SYNC_TTL:
         return
-    st.session_state[_tk] = _now
+    # TTL은 성공 후 설정 — 실패 시 다음 호출에서 재시도
 
-    req_res = (con.table("requests").select("*")
-               .eq("project_id", project_id)
-               .in_("status", ["PENDING_APPROVAL", "APPROVED"])
-               .execute())
+    try:
+        req_res = (con.table("requests").select("*")
+                   .eq("project_id", project_id)
+                   .in_("status", ["PENDING_APPROVAL", "APPROVED"])
+                   .execute())
+    except Exception:
+        return
     requests = req_res.data or []
     if not requests:
+        st.session_state[_tk] = _now
         return
     rids = [r["id"] for r in requests]
-    sch_res = (con.table("schedules").select("req_id")
-               .eq("project_id", project_id).in_("req_id", rids).execute())
-    existing_req_ids = {s["req_id"] for s in (sch_res.data or []) if s.get("req_id")}
+    try:
+        # req_id가 실제로 채워진 행만 "이미 동기화됨"으로 판단
+        sch_res = (con.table("schedules").select("req_id")
+                   .eq("project_id", project_id)
+                   .not_.is_("req_id", "null")
+                   .neq("req_id", "")
+                   .execute())
+        existing_req_ids = {s["req_id"] for s in (sch_res.data or []) if s.get("req_id")}
+    except Exception:
+        existing_req_ids = set()
     rows = [r for r in requests if r["id"] not in existing_req_ids]
     for r in rows:
         req_status   = r.get("status", "")
@@ -146,7 +157,11 @@ def schedule_sync_from_requests(con: Client, project_id):
             "booking_zone":  r.get("booking_zone", "A"),
         }
         for sf, st_ in slot_pairs:
-            schedule_insert(con, project_id, {**base, "time_from": sf, "time_to": st_})
+            try:
+                schedule_insert(con, project_id, {**base, "time_from": sf, "time_to": st_})
+            except Exception:
+                pass
+    st.session_state[_tk] = _now
 
 
 def _add_30min(time_str: str) -> str:

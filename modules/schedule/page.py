@@ -582,6 +582,9 @@ def page_schedule(con):
                     st.session_state["user_sel_sched_list"]   = []
                     st.session_state["sched_mobile_show_form"] = False
                     st.session_state.pop("sched_edit_from_home", None)
+                    st.session_state.pop("admin_sel_sched_ids",  None)
+                    st.session_state.pop("admin_sel_sched_list", None)
+                    st.session_state.pop("admin_sel_sched_kind", None)
                     st.rerun()
             with nav2:
                 today = today_kst()
@@ -623,6 +626,9 @@ def page_schedule(con):
                     st.session_state["user_sel_sched_list"]   = []
                     st.session_state["sched_mobile_show_form"] = False
                     st.session_state.pop("sched_edit_from_home", None)
+                    st.session_state.pop("admin_sel_sched_ids",  None)
+                    st.session_state.pop("admin_sel_sched_list", None)
+                    st.session_state.pop("admin_sel_sched_kind", None)
                     st.rerun()
             with nav3:
                 _adv = int(settings_get(con, "schedule_advance_days", "2"))
@@ -637,6 +643,9 @@ def page_schedule(con):
                     st.session_state["user_sel_sched_list"]   = []
                     st.session_state["sched_mobile_show_form"] = False
                     st.session_state.pop("sched_edit_from_home", None)
+                    st.session_state.pop("admin_sel_sched_ids",  None)
+                    st.session_state.pop("admin_sel_sched_list", None)
+                    st.session_state.pop("admin_sel_sched_kind", None)
                     st.rerun()
 
         st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
@@ -881,6 +890,11 @@ def page_schedule(con):
                     new_slots = _consecutive_toggle(lst, dnd_result["slot"])
                     st.session_state[key_] = new_slots
                     st.session_state["sched_last_kind"] = "반입" if dnd_result["kind"] == KIND_IN else "반출"
+                    # 신규 슬롯 선택 시 기존 스케줄 선택 상태 초기화 → 폼을 신규 예약 모드로 전환
+                    st.session_state.pop("admin_sel_sched_ids",  None)
+                    st.session_state.pop("admin_sel_sched_list", None)
+                    st.session_state.pop("admin_sel_sched_kind", None)
+                    st.session_state.pop("sched_edit_from_home", None)
                     st.rerun()
         else:
             user_sel_ids_cur = [s["id"] for s in st.session_state.get("user_sel_sched_list", [])]
