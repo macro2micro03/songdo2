@@ -3,6 +3,7 @@ import json
 import uuid
 import streamlit as st
 from shared.timing import measure
+from shared import audit as _audit
 from datetime import date, timedelta
 
 from modules.schedule.crud import schedule_list_by_date, schedule_sync_from_requests, schedule_insert
@@ -80,10 +81,20 @@ def _insert_extra_slots(con, project_id, sel_list, add_slots, kind_val, gate,
         all_tf = [r["time_from"] for r in (_all_res.data or [])]
         if all_tf:
             last_idx = TIME_SLOTS.index(all_tf[-1]) if all_tf[-1] in TIME_SLOTS else 0
+            _new_to = TIME_SLOTS[min(last_idx + 1, len(TIME_SLOTS) - 1)]
             con.table("requests").update({
                 "time_from": all_tf[0],
-                "time_to": TIME_SLOTS[min(last_idx + 1, len(TIME_SLOTS) - 1)],
+                "time_to": _new_to,
             }).eq("id", rid).execute()
+            _prev_tf = sorted(existing_tf)
+            _audit.log_change(
+                con, project_id=project_id, req_id=rid, action=_audit.ADD_SLOT,
+                before_from=_prev_tf[0] if _prev_tf else "",
+                before_to=_prev_tf[-1] if _prev_tf else "",
+                after_from=all_tf[0], after_to=_new_to,
+                detail={"date": sdate, "added": n_added,
+                        "added_slots": sorted(add_slots)},
+            )
     return n_added
 
 
@@ -337,6 +348,7 @@ def page_schedule(con):
                      .eq("req_id", req_id).eq("schedule_date", date_str)
                      .order("time_from").execute())
             group = _gres.data or []
+            _bf, _bt = _audit.slot_range(group)
             _shift_group_slots(con, group, start_fi)
             if group:
                 actual_end = min(start_fi + len(group), len(TIME_SLOTS) - 1)
@@ -344,10 +356,23 @@ def page_schedule(con):
                     "time_from": TIME_SLOTS[start_fi],
                     "time_to": TIME_SLOTS[actual_end],
                 }).eq("id", req_id).execute()
+                _audit.log_change(
+                    con, project_id=project_id, req_id=req_id, action=_audit.MOVE,
+                    before_from=_bf, before_to=_bt,
+                    after_from=TIME_SLOTS[start_fi], after_to=TIME_SLOTS[actual_end],
+                    detail={"via": "drag", "date": date_str, "slots": len(group)},
+                )
         else:
             nf = TIME_SLOTS[drop_fi]
             nt = TIME_SLOTS[min(drop_fi + 1, len(TIME_SLOTS) - 1)]
+            _one = schedule_get(con, mv["sched_id"]) or {}
             schedule_update(con, mv["sched_id"], time_from=nf, time_to=nt)
+            _audit.log_change(
+                con, project_id=project_id, req_id="", action=_audit.MOVE,
+                before_from=_one.get("time_from", ""), before_to=_one.get("time_to", ""),
+                after_from=nf, after_to=nt,
+                detail={"via": "drag", "sched_id": mv["sched_id"], "date": date_str},
+            )
         st.rerun()
 
     # 단일 슬롯 삭제 (× 버튼)
@@ -367,6 +392,16 @@ def page_schedule(con):
                     "time_from": remaining[0]["time_from"],
                     "time_to": remaining[-1]["time_to"],
                 }).eq("id", req_id).execute()
+            _audit.log_change(
+                con, project_id=project_id, req_id=req_id or "",
+                action=_audit.DELETE_SLOT,
+                before_from=del_sched.get("time_from", ""),
+                before_to=del_sched.get("time_to", ""),
+                after_from=remaining[0]["time_from"] if remaining else "",
+                after_to=remaining[-1]["time_to"] if remaining else "",
+                detail={"date": date_str, "deleted_slot_id": sid,
+                        "remaining": len(remaining)},
+            )
         for k in _ADMIN_KEYS:
             st.session_state.pop(k, None)
         st.session_state.pop("sched_edit_from_home", None)
@@ -374,7 +409,15 @@ def page_schedule(con):
 
     if "admin_del_sched" in st.session_state:
         for sid in st.session_state.pop("admin_del_sched"):
+            _d = schedule_get(con, sid) or {}
             schedule_delete(con, sid)
+            _audit.log_change(
+                con, project_id=project_id, req_id=_d.get("req_id", ""),
+                action=_audit.DELETE,
+                before_from=_d.get("time_from", ""), before_to=_d.get("time_to", ""),
+                detail={"date": _d.get("schedule_date", ""), "sched_id": sid,
+                        "company": _d.get("company_name", "")},
+            )
         for k in _ADMIN_KEYS:
             st.session_state.pop(k, None)
         st.session_state.pop("sched_edit_from_home", None)
@@ -403,6 +446,7 @@ def page_schedule(con):
                           .eq("req_id", _req_id).eq("schedule_date", _mv_date)
                           .order("time_from").execute())
                 _group = _gres2.data or []
+                _bf2, _bt2 = _audit.slot_range(_group)
                 _shift_group_slots(con, _group, start_fi)
                 if _group:
                     _actual_end = min(start_fi + len(_group), len(TIME_SLOTS) - 1)
@@ -410,6 +454,15 @@ def page_schedule(con):
                         "time_from": TIME_SLOTS[start_fi],
                         "time_to": TIME_SLOTS[_actual_end],
                     }).eq("id", _req_id).execute()
+                    _audit.log_change(
+                        con, project_id=project_id, req_id=_req_id,
+                        action=_audit.MOVE,
+                        before_from=_bf2, before_to=_bt2,
+                        after_from=TIME_SLOTS[start_fi],
+                        after_to=TIME_SLOTS[_actual_end],
+                        detail={"via": "move_button", "date": _mv_date,
+                                "slots": len(_group)},
+                    )
         else:
             # req_id 없는 단독 슬롯은 개별 이동
             for i, sched in enumerate(sel_list):
@@ -1044,6 +1097,38 @@ def page_schedule(con):
                 f'선택된 예약: <b>{_edit_date}, {_rng_from} ~ {_rng_to}</b> ({n}개 슬롯)</div>',
                 unsafe_allow_html=True,
             )
+            # 변경 이력
+            _hist = _audit.history(con, ref.get("req_id", "")) if ref.get("req_id") else []
+            if _hist:
+                _act_ko = {
+                    _audit.CREATE: "신규", _audit.MOVE: "시간 이동",
+                    _audit.EDIT: "내용 수정", _audit.ADD_SLOT: "슬롯 연장",
+                    _audit.DELETE_SLOT: "슬롯 삭제", _audit.DELETE: "삭제",
+                }
+                with st.expander(f"🕘 변경 이력 ({len(_hist)}건)", expanded=False):
+                    for _h in reversed(_hist):
+                        _who = _h.get("changed_by_name") or _h.get("changed_by") or "알 수 없음"
+                        _role = _h.get("changed_by_role") or ""
+                        _when = (_h.get("created_at") or "")[:16].replace("T", " ")
+                        _a = _act_ko.get(_h.get("action", ""), _h.get("action", ""))
+                        _bf, _bt = _h.get("before_from", ""), _h.get("before_to", "")
+                        _af, _at = _h.get("after_from", ""), _h.get("after_to", "")
+                        if _bf and (_bf, _bt) != (_af, _at):
+                            _chg = f"{_bf}~{_bt} → <b>{_af}~{_at}</b>"
+                        elif _af:
+                            _chg = f"<b>{_af}~{_at}</b>"
+                        else:
+                            _chg = f"{_bf}~{_bt}"
+                        st.markdown(
+                            f'<div style="font-size:12px;padding:3px 0;'
+                            f'border-bottom:1px solid #f1f5f9;">'
+                            f'<span style="color:#64748b;">{_when}</span> · '
+                            f'<b>{_a}</b> · {_chg} · '
+                            f'<span style="color:#475569;">{_who}'
+                            f'{f" ({_role})" if _role else ""}</span></div>',
+                            unsafe_allow_html=True,
+                        )
+
             # 추가 슬롯: 타임라인에서 직접 선택 (toggle_book → sched_sel_in/out_slots)
             _ref_kind    = ref.get("kind", KIND_IN)
             _add_key_now = "sched_sel_in_slots" if _ref_kind == KIND_IN else "sched_sel_out_slots"
@@ -1418,6 +1503,14 @@ def page_schedule(con):
                         schedule_update(con, _row["id"],
                                         company_name=company_name.strip(),
                                         kind=new_kind_val, gate=gate)
+                    _audit.log_change(
+                        con, project_id=project_id, req_id=rid, action=_audit.EDIT,
+                        before_from=_sel_range(sel_list)[0],
+                        before_to=_sel_range(sel_list)[1],
+                        detail={"by": "admin", "company": company_name.strip(),
+                                "item": item_name.strip(), "kind": new_kind_val,
+                                "gate": gate},
+                    )
                 for k in _ADMIN_KEYS:
                     st.session_state.pop(k, None)
                 st.session_state.pop("sched_edit_from_home", None)
@@ -1541,6 +1634,14 @@ def page_schedule(con):
                     booking_zone=st.session_state.get("sched_current_zone", "A"),
                 ))
                 approvals_create_default(con, rid, kind_val)
+                _audit.log_change(
+                    con, project_id=project_id, req_id=rid, action=_audit.CREATE,
+                    after_from=req_from, after_to=req_to,
+                    detail={"date": req_date, "company": company_name.strip(),
+                            "item": item_name.strip(), "kind": kind_val,
+                            "zone": st.session_state.get("sched_current_zone", "A"),
+                            "conflict_at_create": bool(conflict)},
+                )
                 disp = req_display_id(req_get(con, rid) or {"id": rid})
                 st.success(f"✅ 예약 신청 완료 ({disp}) — {req_date} {req_from}~{req_to} / {gate}")
                 # 슬롯·폼은 그대로 유지하고 시그니처만 저장 → 버튼이 "예약 완료"로 표시됨

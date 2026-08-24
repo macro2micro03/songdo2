@@ -230,6 +230,14 @@ def page_request(con: Client):
             sic_training_url="",
         ))
         approvals_create_default(con, rid, kind_val)
+        from shared import audit as _audit
+        _audit.log_change(
+            con, project_id=project_id, req_id=rid, action=_audit.CREATE,
+            after_from=time_from_str, after_to=time_to_str,
+            detail={"date": str(date_val), "company": company_name.strip(),
+                    "item": item_name.strip(), "kind": kind_val,
+                    "zone": booking_zone, "via": "request_page"},
+        )
         disp = req_display_id(req_get(con, rid) or {"id": rid})
         st.success(f"요청 등록 완료 · {disp}")
         st.rerun()
