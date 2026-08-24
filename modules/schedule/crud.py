@@ -98,8 +98,6 @@ def schedule_sync_from_requests(con: Client, project_id):
     _now = time.monotonic()
     if _now - st.session_state.get(_tk, 0) < _SYNC_TTL:
         return
-    # TTL은 성공 후 설정 — 실패 시 다음 호출에서 재시도
-
     # TTL을 먼저 설정 — 이후 작업이 느려도 다음 렌더가 중복 실행하지 않도록
     st.session_state[_tk] = _now
 
@@ -113,13 +111,26 @@ def schedule_sync_from_requests(con: Client, project_id):
     requests = req_res.data or []
     if not requests:
         return
+
+    # 기존 schedules 의 req_id 전체 수집.
+    # ⚠️ PostgREST 는 기본 1000행만 반환하므로 반드시 페이지네이션.
+    #    (누락되면 이미 동기화된 요청을 계속 재삽입해 중복이 무한 증가함)
+    existing_req_ids = set()
+    _page, _size = 0, 1000
     try:
-        sch_res = (con.table("schedules").select("req_id")
-                   .eq("project_id", project_id)
-                   .execute())
-        existing_req_ids = {s["req_id"] for s in (sch_res.data or []) if s.get("req_id")}
+        while True:
+            _res = (con.table("schedules").select("req_id")
+                    .eq("project_id", project_id)
+                    .range(_page * _size, _page * _size + _size - 1)
+                    .execute())
+            _rows = _res.data or []
+            existing_req_ids.update(s["req_id"] for s in _rows if s.get("req_id"))
+            if len(_rows) < _size:
+                break
+            _page += 1
     except Exception:
-        existing_req_ids = set()
+        # 조회 실패 시 중복 삽입 위험이 있으므로 아예 동기화하지 않음
+        return
 
     from config import TIME_SLOTS
     from shared.helpers import new_id, now_str
