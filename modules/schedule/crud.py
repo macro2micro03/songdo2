@@ -100,6 +100,9 @@ def schedule_sync_from_requests(con: Client, project_id):
         return
     # TTL은 성공 후 설정 — 실패 시 다음 호출에서 재시도
 
+    # TTL을 먼저 설정 — 이후 작업이 느려도 다음 렌더가 중복 실행하지 않도록
+    st.session_state[_tk] = _now
+
     try:
         req_res = (con.table("requests").select("*")
                    .eq("project_id", project_id)
@@ -109,39 +112,37 @@ def schedule_sync_from_requests(con: Client, project_id):
         return
     requests = req_res.data or []
     if not requests:
-        st.session_state[_tk] = _now
         return
-    rids = [r["id"] for r in requests]
     try:
-        # 프로젝트의 모든 schedules.req_id 를 가져와 Python 에서 필터
         sch_res = (con.table("schedules").select("req_id")
                    .eq("project_id", project_id)
                    .execute())
         existing_req_ids = {s["req_id"] for s in (sch_res.data or []) if s.get("req_id")}
     except Exception:
         existing_req_ids = set()
-    rows = [r for r in requests if r["id"] not in existing_req_ids]
-    for r in rows:
+
+    from config import TIME_SLOTS
+    from shared.helpers import new_id, now_str
+    bulk_rows = []
+    for r in requests:
+        if r["id"] in existing_req_ids:
+            continue
         req_status   = r.get("status", "")
         sched_status = "PENDING" if req_status == "PENDING_APPROVAL" else "APPROVED"
         sched_color  = "#fbbf24" if sched_status == "PENDING" else "#22c55e"
         time_from    = r.get("time_from", "08:00") or "08:00"
         time_to      = r.get("time_to") or _add_30min(time_from)
-
-        # 30분 단위 슬롯별로 개별 레코드 생성
-        from config import TIME_SLOTS
         try:
             fi = TIME_SLOTS.index(time_from)
             ti = TIME_SLOTS.index(time_to)
         except ValueError:
             fi, ti = 0, 1
-
         slot_pairs = [(TIME_SLOTS[i], TIME_SLOTS[i + 1])
                       for i in range(fi, ti) if i + 1 < len(TIME_SLOTS)]
         if not slot_pairs:
             slot_pairs = [(time_from, _add_30min(time_from))]
-
         base = {
+            "project_id":    project_id,
             "req_id":        r.get("id", ""),
             "title":         r.get("company_name", "자재 반출입"),
             "schedule_date": r.get("date", r.get("created_at", "")[:10]),
@@ -153,13 +154,19 @@ def schedule_sync_from_requests(con: Client, project_id):
             "color":         sched_color,
             "created_by":    "system",
             "booking_zone":  r.get("booking_zone", "A"),
+            "created_at":    now_str(),
         }
         for sf, st_ in slot_pairs:
-            try:
-                schedule_insert(con, project_id, {**base, "time_from": sf, "time_to": st_})
-            except Exception:
-                pass
-    st.session_state[_tk] = _now
+            bulk_rows.append({**base, "id": new_id(), "time_from": sf, "time_to": st_})
+
+    if not bulk_rows:
+        return
+    # 한 번에 최대 100행씩 bulk insert
+    try:
+        for i in range(0, len(bulk_rows), 100):
+            con.table("schedules").insert(bulk_rows[i:i + 100]).execute()
+    except Exception:
+        pass
 
 
 def _add_30min(time_str: str) -> str:
