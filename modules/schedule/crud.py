@@ -113,11 +113,9 @@ def schedule_sync_from_requests(con: Client, project_id):
         return
     rids = [r["id"] for r in requests]
     try:
-        # req_id가 실제로 채워진 행만 "이미 동기화됨"으로 판단
+        # 프로젝트의 모든 schedules.req_id 를 가져와 Python 에서 필터
         sch_res = (con.table("schedules").select("req_id")
                    .eq("project_id", project_id)
-                   .not_.is_("req_id", "null")
-                   .neq("req_id", "")
                    .execute())
         existing_req_ids = {s["req_id"] for s in (sch_res.data or []) if s.get("req_id")}
     except Exception:
