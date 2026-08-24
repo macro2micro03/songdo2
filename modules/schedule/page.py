@@ -87,6 +87,13 @@ def _insert_extra_slots(con, project_id, sel_list, add_slots, kind_val, gate,
     return n_added
 
 
+def _sel_range(sel_list):
+    """선택된 슬롯 목록의 실제 시간 범위 (시작 time_from ~ 끝 time_to)."""
+    tf = sorted(s.get("time_from", "") for s in sel_list if s.get("time_from"))
+    tt = sorted(s.get("time_to", "")   for s in sel_list if s.get("time_to"))
+    return (tf[0] if tf else ""), (tt[-1] if tt else "")
+
+
 def _shift_group_slots(con, group, start_fi):
     """연속 슬롯 그룹을 start_fi 부터 재배치.
 
@@ -1024,7 +1031,7 @@ def page_schedule(con):
             n   = len(sel_list)
             ref = sel_list[0]
             req = (req_get(con, ref["req_id"]) or {}) if ref.get("req_id") else {}
-            times = sorted(s.get("time_from", "") for s in sel_list)
+            _rng_from, _rng_to = _sel_range(sel_list)
             can_delete = is_admin_edit or ref.get("status") == "PENDING"
             if is_admin_edit:
                 st.caption("✏️ 내용 수정 후 저장 | 타임라인 [→ 이동]: 시간 이동")
@@ -1034,7 +1041,7 @@ def page_schedule(con):
             st.markdown(
                 f'<div style="font-size:14px;background:#fff8f4;border:1px solid #ED7D31;'
                 f'border-radius:6px;padding:6px 10px;margin-bottom:8px;">'
-                f'선택된 예약: <b>{_edit_date}, {times[0]} ~ {times[-1]}</b> ({n}개 슬롯)</div>',
+                f'선택된 예약: <b>{_edit_date}, {_rng_from} ~ {_rng_to}</b> ({n}개 슬롯)</div>',
                 unsafe_allow_html=True,
             )
             # 추가 슬롯: 타임라인에서 직접 선택 (toggle_book → sched_sel_in/out_slots)
@@ -1070,7 +1077,7 @@ def page_schedule(con):
             _vl   = admin_sel_list if is_admin else user_sel_list
             ref   = _vl[0]
             req   = (req_get(con, ref["req_id"]) or {}) if ref.get("req_id") else {}
-            times = sorted(s.get("time_from", "") for s in _vl)
+            _vrng_from, _vrng_to = _sel_range(_vl)
             _vdate = ref.get("schedule_date", str(current_date))
             _vstatus_label = {
                 "PENDING": "대기중", "APPROVED": "승인됨",
@@ -1082,7 +1089,7 @@ def page_schedule(con):
             st.markdown(
                 f'<div style="font-size:14px;background:#f0f9ff;border:1px solid #bae6fd;'
                 f'border-radius:6px;padding:6px 10px;margin-bottom:8px;">'
-                f'선택된 예약: <b>{_vdate}, {times[0]} ~ {times[-1]}</b>'
+                f'선택된 예약: <b>{_vdate}, {_vrng_from} ~ {_vrng_to}</b>'
                 f'<span style="float:right;background:#dbeafe;color:#1d4ed8;font-size:11px;'
                 f'padding:2px 8px;border-radius:10px;">{_vstatus}</span></div>',
                 unsafe_allow_html=True,
