@@ -30,9 +30,12 @@ def ui_header(con: Client):
                     st.caption("modules/outputs/fonts/NanumGothic.ttf 존재 여부 / Streamlit Cloud 재배포 확인")
         except Exception:
             pass
-    res = (con.table("requests").select("status,vehicle_count")
-           .eq("project_id", project_id).eq("date", today).execute())
-    rows = res.data or []
+    try:
+        res = (con.table("requests").select("status,vehicle_count")
+               .eq("project_id", project_id).eq("date", today).execute())
+        rows = res.data or []
+    except Exception:
+        rows = []
     total = len(rows)
     pending = approved = done = 0
     total_v = pending_v = approved_v = done_v = 0

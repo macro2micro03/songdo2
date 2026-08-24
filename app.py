@@ -548,7 +548,10 @@ def main():
 
     # ── Step 3: Main app ──
     render_sidebar()
-    ui_header(con)
+    try:
+        ui_header(con)
+    except Exception:
+        pass
     render_topnav(con)
 
     active_page = st.session_state.get("ACTIVE_PAGE", "홈")
@@ -570,6 +573,8 @@ def main():
         )
         st.session_state["_last_logged_page"] = active_page
 
+    _NETWORK_ERRS = ("RemoteProtocolError", "ReadError", "ConnectError", "TimeoutException")
+
     try:
         if active_page == "홈":
             page_home(con)
@@ -578,8 +583,9 @@ def main():
         else:
             st.warning(f"알 수 없는 페이지: {active_page}")
     except Exception as _e:
-        # httpx 유휴 연결 끊김 → Supabase 클라이언트만 초기화 후 자동 재시도
-        if "RemoteProtocolError" in type(_e).__name__ or "RemoteProtocolError" in repr(_e):
+        # httpx 네트워크 오류(유휴 연결 끊김 등) → 클라이언트 초기화 후 자동 재시도
+        _ename = type(_e).__name__
+        if any(n in _ename or n in repr(_e) for n in _NETWORK_ERRS):
             from db.connection import reset_supabase_cache
             reset_supabase_cache()
             st.rerun()
