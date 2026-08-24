@@ -135,6 +135,7 @@ def schedule_sync_from_requests(con: Client, project_id):
     from config import TIME_SLOTS
     from shared.helpers import new_id, now_str
     bulk_rows = []
+    _seen = set()   # (req_id, time_from, time_to) — 배치 내 중복 방지
     for r in requests:
         if r["id"] in existing_req_ids:
             continue
@@ -168,16 +169,26 @@ def schedule_sync_from_requests(con: Client, project_id):
             "created_at":    now_str(),
         }
         for sf, st_ in slot_pairs:
+            _k = (base["req_id"], sf, st_)
+            if _k in _seen:
+                continue
+            _seen.add(_k)
             bulk_rows.append({**base, "id": new_id(), "time_from": sf, "time_to": st_})
 
     if not bulk_rows:
         return
-    # 한 번에 최대 100행씩 bulk insert
-    try:
-        for i in range(0, len(bulk_rows), 100):
-            con.table("schedules").insert(bulk_rows[i:i + 100]).execute()
-    except Exception:
-        pass
+    # 100행씩 bulk insert. schedules_req_slot_uniq 인덱스와 충돌하면
+    # 배치 전체가 실패하므로, 실패 시 행 단위로 재시도해 충돌 행만 건너뜀.
+    for i in range(0, len(bulk_rows), 100):
+        chunk = bulk_rows[i:i + 100]
+        try:
+            con.table("schedules").insert(chunk).execute()
+        except Exception:
+            for row in chunk:
+                try:
+                    con.table("schedules").insert(row).execute()
+                except Exception:
+                    pass
 
 
 def _add_30min(time_str: str) -> str:
