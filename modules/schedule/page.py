@@ -498,7 +498,10 @@ def page_schedule(con):
     if current_date < today_kst():
         current_date = today_kst()
         st.session_state["sched_current_date"] = current_date
-    schedule_sync_from_requests(con, project_id)
+    # [진단용] 콜드 스타트 멈춤의 원인이 동기화인지 가리기 위한 임시 스위치.
+    # secrets 의 SCHEDULE_SYNC="off" 로 끌 수 있다. 원인 확인 후 제거할 것.
+    if str(st.secrets.get("SCHEDULE_SYNC", "on")).lower() != "off":
+        schedule_sync_from_requests(con, project_id)
     date_str = current_date.isoformat()
 
     # ── 예약존 로드 ────────────────────────────────────────────────────────
