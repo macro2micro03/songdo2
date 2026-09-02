@@ -186,10 +186,18 @@ def schedule_sync_from_requests(con: Client, project_id):
     for r in requests:
         if r["id"] in existing_req_ids:
             continue
-        req_status   = r.get("status", "")
+        # ⚠️ dict.get(k, default) 는 "키 없음" 에만 기본값을 준다. DB 행은
+        #    컬럼이 항상 존재하므로 NULL 이면 None 이 그대로 넘어온다.
+        #    반드시 `or` 로 받아야 한다.
+        sched_date = (r.get("date") or (r.get("created_at") or "")[:10]).strip()
+        if len(sched_date) < 10:
+            # 날짜를 알 수 없는 요청은 스케줄을 만들 수 없다.
+            # (건너뛰지 않으면 삽입이 매번 실패해 동기화가 무한 재시도한다)
+            continue
+        req_status   = r.get("status") or ""
         sched_status = "PENDING" if req_status == "PENDING_APPROVAL" else "APPROVED"
         sched_color  = "#fbbf24" if sched_status == "PENDING" else "#22c55e"
-        time_from    = r.get("time_from", "08:00") or "08:00"
+        time_from    = r.get("time_from") or "08:00"
         time_to      = r.get("time_to") or _add_30min(time_from)
         try:
             fi = TIME_SLOTS.index(time_from)
@@ -202,17 +210,18 @@ def schedule_sync_from_requests(con: Client, project_id):
             slot_pairs = [(time_from, _add_30min(time_from))]
         base = {
             "project_id":    project_id,
-            "req_id":        r.get("id", ""),
-            "title":         r.get("company_name", "자재 반출입"),
-            "schedule_date": r.get("date", r.get("created_at", "")[:10]),
-            "kind":          r.get("kind", "IN"),
-            "gate":          r.get("gate", ""),
-            "company_name":  r.get("company_name", ""),
-            "vehicle_info":  f"{r.get('vehicle_type','')} {r.get('vehicle_ton','')}t".strip(),
+            "req_id":        r.get("id") or "",
+            "title":         r.get("company_name") or "자재 반출입",
+            "schedule_date": sched_date,
+            "kind":          r.get("kind") or "IN",
+            "gate":          r.get("gate") or "",
+            "company_name":  r.get("company_name") or "",
+            "vehicle_info":  (f"{r.get('vehicle_type') or ''} "
+                              f"{r.get('vehicle_ton') or ''}t").strip(),
             "status":        sched_status,
             "color":         sched_color,
             "created_by":    "system",
-            "booking_zone":  r.get("booking_zone", "A"),
+            "booking_zone":  r.get("booking_zone") or "A",
             "created_at":    now_str(),
         }
         for sf, st_ in slot_pairs:
