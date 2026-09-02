@@ -87,6 +87,40 @@ def schedule_by_req_id(con: Client, req_id: str) -> Optional[Dict[str, Any]]:
     return res.data[0] if res.data else None
 
 
+_PAGE = 1000    # PostgREST 기본 반환 상한
+_IN_CHUNK = 100  # .in_() 한 번에 넣을 id 개수 (URL 길이 제한 회피)
+
+# 동기화에 실제로 쓰는 컬럼만 — select("*") 는 전송량이 건수에 비례해 증가
+_SYNC_REQ_COLS = ("id,status,date,created_at,time_from,time_to,kind,gate,"
+                  "company_name,vehicle_type,vehicle_ton,booking_zone")
+
+
+def _existing_req_ids(con: Client, project_id, rids: List[str]) -> set:
+    """rids 중 이미 schedules 행을 가진 req_id 집합.
+
+    전체 이력을 훑지 않고 대상 req_id 로 범위를 좁힌다. 그래야 누적
+    데이터가 늘어도 왕복 수가 진행 중인 건수에만 비례한다.
+    (전체 스캔은 행 1000개마다 왕복이 1회씩 늘어 시간이 갈수록 느려짐)
+    """
+    found: set = set()
+    for i in range(0, len(rids), _IN_CHUNK):
+        chunk = rids[i:i + _IN_CHUNK]
+        page = 0
+        while True:
+            res = (con.table("schedules").select("req_id")
+                   .eq("project_id", project_id)
+                   .in_("req_id", chunk)
+                   .range(page * _PAGE, page * _PAGE + _PAGE - 1)
+                   .execute())
+            rows = res.data or []
+            found.update(r["req_id"] for r in rows if r.get("req_id"))
+            # 청크의 모든 id 를 찾았으면 남은 페이지는 볼 필요 없음
+            if len(rows) < _PAGE or all(c in found for c in chunk):
+                break
+            page += 1
+    return found
+
+
 def schedule_sync_from_requests(con: Client, project_id):
     """Sync schedule entries from existing approved requests (auto-populate).
 
@@ -101,35 +135,31 @@ def schedule_sync_from_requests(con: Client, project_id):
     # TTL을 먼저 설정 — 이후 작업이 느려도 다음 렌더가 중복 실행하지 않도록
     st.session_state[_tk] = _now
 
+    requests: List[Dict[str, Any]] = []
     try:
-        req_res = (con.table("requests").select("*")
-                   .eq("project_id", project_id)
-                   .in_("status", ["PENDING_APPROVAL", "APPROVED"])
-                   .execute())
-    except Exception:
-        return
-    requests = req_res.data or []
-    if not requests:
-        return
-
-    # 기존 schedules 의 req_id 전체 수집.
-    # ⚠️ PostgREST 는 기본 1000행만 반환하므로 반드시 페이지네이션.
-    #    (누락되면 이미 동기화된 요청을 계속 재삽입해 중복이 무한 증가함)
-    existing_req_ids = set()
-    _page, _size = 0, 1000
-    try:
+        _page = 0
         while True:
-            _res = (con.table("schedules").select("req_id")
-                    .eq("project_id", project_id)
-                    .range(_page * _size, _page * _size + _size - 1)
-                    .execute())
-            _rows = _res.data or []
-            existing_req_ids.update(s["req_id"] for s in _rows if s.get("req_id"))
-            if len(_rows) < _size:
+            req_res = (con.table("requests").select(_SYNC_REQ_COLS)
+                       .eq("project_id", project_id)
+                       .in_("status", ["PENDING_APPROVAL", "APPROVED"])
+                       .range(_page * _PAGE, _page * _PAGE + _PAGE - 1)
+                       .execute())
+            _rows = req_res.data or []
+            requests.extend(_rows)
+            if len(_rows) < _PAGE:
                 break
             _page += 1
     except Exception:
-        # 조회 실패 시 중복 삽입 위험이 있으므로 아예 동기화하지 않음
+        return
+    if not requests:
+        return
+
+    # 이미 스케줄이 있는 req_id — 대상 id 로만 조회 (전체 이력 스캔 금지).
+    # 조회가 실패하면 중복 삽입 위험이 있으므로 동기화를 건너뛴다.
+    try:
+        existing_req_ids = _existing_req_ids(
+            con, project_id, [r["id"] for r in requests])
+    except Exception:
         return
 
     from config import TIME_SLOTS

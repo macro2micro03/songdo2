@@ -191,14 +191,25 @@ def _storage_rows(con: Client, project_id: str) -> List[Dict[str, Any]]:
         return st.session_state[_ck]
 
     ddays = default_days(con)
-    res = (con.table("requests")
-           .select("id,item_name,company_name,kind,status,gate,date,created_at,"
-                   "store_terminal,store_start,store_end,store_released")
-           .eq("project_id", project_id)
-           .eq("kind", "IN")
-           .execute())
+    # ⚠️ PostgREST 는 기본 1000행만 반환한다. 페이지네이션하지 않으면
+    #    요청이 1000건을 넘는 순간 이후 점유가 조용히 누락된다.
+    _rows: List[Dict[str, Any]] = []
+    _page, _size = 0, 1000
+    while True:
+        res = (con.table("requests")
+               .select("id,item_name,company_name,kind,status,gate,date,created_at,"
+                       "store_terminal,store_start,store_end,store_released")
+               .eq("project_id", project_id)
+               .eq("kind", "IN")
+               .range(_page * _size, _page * _size + _size - 1)
+               .execute())
+        _batch = res.data or []
+        _rows.extend(_batch)
+        if len(_batch) < _size:
+            break
+        _page += 1
     out = []
-    for r in res.data or []:
+    for r in _rows:
         if r.get("store_released"):
             continue
         if r.get("status") not in STORAGE_BLOCKING_STATUS:
