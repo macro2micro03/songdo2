@@ -514,6 +514,7 @@ def page_schedule(con):
     current_zone = st.session_state["sched_current_zone"]
 
     # ── 관리자 전체 존 현황 그리드 ─────────────────────────────────────────
+    _all_scheds = None   # 전체 존 조회 결과 — 존별 필터에 재사용
     if is_admin and len(booking_zones) > 1:
         _all_scheds = schedule_list_by_date(con, project_id, date_str)
         _zone_summary = {}
@@ -724,7 +725,12 @@ def page_schedule(con):
 
         st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
 
-        schedules = schedule_list_by_date(con, project_id, date_str, booking_zone=current_zone)
+        # 전체 존을 이미 조회했으면 재사용 (crud 의 .eq("booking_zone", ...) 와 동일 조건)
+        if _all_scheds is not None:
+            schedules = [s for s in _all_scheds if s.get("booking_zone") == current_zone]
+        else:
+            schedules = schedule_list_by_date(con, project_id, date_str,
+                                              booking_zone=current_zone)
 
         # schedules에 requester_name 첨부 (본인 예약 식별용)
         _req_ids = list({s["req_id"] for s in schedules if s.get("req_id")})
