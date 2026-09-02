@@ -7,7 +7,8 @@ from supabase import Client
 
 from shared.helpers import now_str, new_id
 
-_SYNC_TTL = 60  # schedule_sync_from_requests 최소 실행 간격(초)
+_SYNC_TTL = 60       # schedule_sync_from_requests 최소 실행 간격(초)
+_SYNC_BACKOFF = 600  # 삽입이 계속 실패할 때 재시도를 미루는 시간(초)
 
 
 @measure("crud.schedule_insert")
@@ -207,18 +208,23 @@ def schedule_sync_from_requests(con: Client, project_id):
 
     if not bulk_rows:
         return
-    # 100행씩 bulk insert. schedules_req_slot_uniq 인덱스와 충돌하면
-    # 배치 전체가 실패하므로, 실패 시 행 단위로 재시도해 충돌 행만 건너뜀.
+    # 100행씩 bulk insert.
+    # ⚠️ 실패한 배치를 행 단위로 재시도하지 않는다. 왕복 230ms × 100행이면
+    #    배치 하나에 23초가 걸려 페이지가 멈춘 것처럼 보인다. 충돌은
+    #    schedules_req_slot_uniq 가 이미 막아주므로 배치를 건너뛰면 된다.
+    #    (실패가 반복되면 _SYNC_FAIL_KEY 로 동기화를 중단시킨다)
+    import streamlit as st
+    _failed = 0
     for i in range(0, len(bulk_rows), 100):
-        chunk = bulk_rows[i:i + 100]
         try:
-            con.table("schedules").insert(chunk).execute()
+            con.table("schedules").insert(bulk_rows[i:i + 100]).execute()
         except Exception:
-            for row in chunk:
-                try:
-                    con.table("schedules").insert(row).execute()
-                except Exception:
-                    pass
+            _failed += 1
+            if _failed >= 2:      # 연속 실패 시 더 시도하지 않음
+                break
+    if _failed:
+        # 계속 실패하는 상태라면 매 세션마다 재시도하지 않도록 길게 잠금
+        st.session_state[_tk] = _now + _SYNC_BACKOFF
 
 
 def _add_30min(time_str: str) -> str:
