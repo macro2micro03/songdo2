@@ -323,6 +323,17 @@ def page_schedule(con):
     """Unified schedule calendar + request registration — single screen."""
     st.markdown(f"<style>{get_schedule_css()}</style>", unsafe_allow_html=True)
 
+    # [진단용] DEBUG_TIMING 이 켜져 있을 때만 진행 단계를 화면에 표시한다.
+    # 멈추면 마지막으로 보이는 단계가 원인 지점. 원인 확인 후 제거할 것.
+    from shared.timing import is_enabled as _diag_on
+    _diag = _diag_on()
+
+    def _step(msg: str) -> None:
+        if _diag:
+            st.caption(f"⏱ {msg}")
+
+    _step("1 진입")
+
     project_id = st.session_state.get("PROJECT_ID", "default")
     is_admin   = st.session_state.get("IS_ADMIN", False)
     user_name  = st.session_state.get("USER_NAME", "")
@@ -498,10 +509,13 @@ def page_schedule(con):
     if current_date < today_kst():
         current_date = today_kst()
         st.session_state["sched_current_date"] = current_date
+    _step("2 세션 초기화 완료")
+
     # [진단용] 콜드 스타트 멈춤의 원인이 동기화인지 가리기 위한 임시 스위치.
     # secrets 의 SCHEDULE_SYNC="off" 로 끌 수 있다. 원인 확인 후 제거할 것.
     if str(st.secrets.get("SCHEDULE_SYNC", "on")).lower() != "off":
         schedule_sync_from_requests(con, project_id)
+    _step("3 동기화 통과")
     date_str = current_date.isoformat()
 
     # ── 예약존 로드 ────────────────────────────────────────────────────────
@@ -516,10 +530,13 @@ def page_schedule(con):
         st.session_state["sched_current_zone"] = booking_zones[0]
     current_zone = st.session_state["sched_current_zone"]
 
+    _step("4 존 설정 로드 완료")
+
     # ── 관리자 전체 존 현황 그리드 ─────────────────────────────────────────
     _all_scheds = None   # 전체 존 조회 결과 — 존별 필터에 재사용
     if is_admin and len(booking_zones) > 1:
         _all_scheds = schedule_list_by_date(con, project_id, date_str)
+        _step("5 전체 존 스케줄 조회 완료")
         _zone_summary = {}
         for bz in booking_zones:
             _zs = [s for s in _all_scheds if s.get("booking_zone") == bz]
@@ -596,6 +613,8 @@ def page_schedule(con):
                             st.session_state.pop("sched_edit_from_home", None)
                             st.rerun()
         st.markdown("<div style='margin-top:6px'></div>", unsafe_allow_html=True)
+
+    _step("6 존 그리드 렌더 완료")
 
     col_left, col_right = st.columns([3, 2], gap="large")
     _occupied_terminals: set = set()   # 당일 점유 중 터미널 (드롭다운 필터용)
@@ -747,6 +766,7 @@ def page_schedule(con):
                 pass
         for s in schedules:
             s["requester_name"] = _rmap.get(s.get("req_id", ""), "")
+        _step("7 스케줄·신청자 조회 완료")
 
         # ── 터미널 점유 현황 카드 (터미널 사용 존일 때만) ─────────────────────
         try:
@@ -807,6 +827,7 @@ def page_schedule(con):
             _occupied_terminals = {t for t, rids in _tocc.items() if rids}
 
             # 당일 해제된 터미널 목록 조회
+            _step("8 터미널 점유 집계 완료")
             _tr_res = (con.table("terminal_releases").select("terminal")
                        .eq("project_id", project_id).eq("release_date", date_str)
                        .execute())
@@ -906,6 +927,7 @@ def page_schedule(con):
             _in_edit_mode  = bool(st.session_state.get("admin_sel_sched_list")) and _from_home_tl
             _has_view_sel  = bool(st.session_state.get("admin_sel_sched_ids")) and not _from_home_tl
             _add_time_mode = _has_view_sel  # 뷰 모드 슬롯 선택 시 이동 대신 추가 허용
+            _step("9 타임라인 컴포넌트 호출 직전")
             dnd_result = dnd_timeline(
                 slots=TIME_SLOTS,
                 in_schedules=in_items,
@@ -919,6 +941,7 @@ def page_schedule(con):
                 add_time_mode=_add_time_mode,
                 key="admin_dnd",
             )
+            _step("10 타임라인 컴포넌트 반환")
             # 새 이벤트인지 확인 (ts 기반 중복 방지)
             if dnd_result and dnd_result.get("ts") != st.session_state.get("_dnd_ts"):
                 st.session_state["_dnd_ts"] = dnd_result["ts"]

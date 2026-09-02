@@ -90,6 +90,11 @@ def schedule_by_req_id(con: Client, req_id: str) -> Optional[Dict[str, Any]]:
 
 _PAGE = 1000    # PostgREST 기본 반환 상한
 _IN_CHUNK = 100  # .in_() 한 번에 넣을 id 개수 (URL 길이 제한 회피)
+_MAX_PAGES = 3   # 청크당 허용 페이지 수. 초과 = 중복 누적 신호 → 동기화 중단
+
+
+class SyncUnsafe(Exception):
+    """기존 스케줄을 신뢰성 있게 파악하지 못한 상태. 동기화를 중단해야 한다."""
 
 # 동기화에 실제로 쓰는 컬럼만 — select("*") 는 전송량이 건수에 비례해 증가
 _SYNC_REQ_COLS = ("id,status,date,created_at,time_from,time_to,kind,gate,"
@@ -106,8 +111,7 @@ def _existing_req_ids(con: Client, project_id, rids: List[str]) -> set:
     found: set = set()
     for i in range(0, len(rids), _IN_CHUNK):
         chunk = rids[i:i + _IN_CHUNK]
-        page = 0
-        while True:
+        for page in range(_MAX_PAGES):
             res = (con.table("schedules").select("req_id")
                    .eq("project_id", project_id)
                    .in_("req_id", chunk)
@@ -118,7 +122,15 @@ def _existing_req_ids(con: Client, project_id, rids: List[str]) -> set:
             # 청크의 모든 id 를 찾았으면 남은 페이지는 볼 필요 없음
             if len(rows) < _PAGE or all(c in found for c in chunk):
                 break
-            page += 1
+        else:
+            # ⚠️ 중복 행이 쌓이면 한 req_id 가 수천 행을 차지해 페이지를
+            #    아무리 넘겨도 청크의 id 를 다 못 찾는다. 계속 읽으면
+            #    왕복이 수백 회로 늘어 페이지가 멈춘 것처럼 보인다.
+            #    불완전한 결과로 삽입하면 중복이 다시 증식하므로 중단한다.
+            raise SyncUnsafe(
+                f"schedules 조회가 청크당 {_MAX_PAGES}페이지를 넘었습니다. "
+                "중복 행이 쌓였을 가능성이 높습니다."
+            )
     return found
 
 
@@ -160,6 +172,10 @@ def schedule_sync_from_requests(con: Client, project_id):
     try:
         existing_req_ids = _existing_req_ids(
             con, project_id, [r["id"] for r in requests])
+    except SyncUnsafe:
+        # 중복이 쌓인 상태 — 정리 전까지 재시도해봐야 같은 비용만 든다
+        st.session_state[_tk] = _now + _SYNC_BACKOFF
+        return
     except Exception:
         return
 
