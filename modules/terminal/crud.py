@@ -5,10 +5,12 @@ import re
 from datetime import date as _date
 from typing import Dict, List, Optional
 
+import streamlit as st
 from supabase import Client
 
 from db.models import settings_get
 from shared.helpers import now_str, today_kst
+from shared.storage_plan import _storage_rows
 
 _TERMINAL_RE = re.compile(r"^B[12]-\d{2}$")
 _BLOCKED = {"PENDING_APPROVAL", "APPROVED", "EXECUTING", "DONE"}
@@ -36,26 +38,19 @@ def terminal_max_days(con: Client, project_id: str) -> int:
 
 def terminal_occupied(con: Client, project_id: str,
                       company: Optional[str] = None) -> List[Dict]:
-    """반입일 <= 오늘, 반출 미등록인 터미널 목록."""
+    """점유 시작일 <= 오늘, 반출 미등록인 터미널 목록.
+
+    도면(occupancy_on)과 같은 _storage_rows(페이지네이션 적용)를 사용해
+    도면에 점유로 보이는 터미널은 모두 여기서 반출 처리할 수 있게 한다.
+    """
     today = today_kst().isoformat()
-    res = (con.table("requests")
-           .select(_SEL)
-           .eq("project_id", project_id)
-           .eq("kind", "IN")
-           .lte("date", today)
-           .execute())
     rows = []
-    for r in res.data or []:
-        if r.get("store_released"):
-            continue
-        if r.get("status") not in _BLOCKED:
-            continue
-        term = _eff_terminal(r)
-        if not term:
+    for r in _storage_rows(con, project_id):
+        if r["_start"] > today:
             continue
         if company and r.get("company_name") != company:
             continue
-        rows.append({**r, "terminal": term})
+        rows.append({**r, "terminal": r["_term"], "date": r["_start"]})
     return sorted(rows, key=lambda x: (x["terminal"], x.get("date", "")))
 
 
@@ -86,3 +81,6 @@ def terminal_release(con: Client, rid: str, released_by: str) -> None:
         "store_released_at": now_str(),
         "store_released_by": released_by,
     }).eq("id", rid).execute()
+    # 점유 캐시(30초) 무효화 — 반출 직후 도면·목록에 바로 반영
+    for k in [k for k in st.session_state if str(k).startswith("_storage_rows_")]:
+        st.session_state.pop(k, None)

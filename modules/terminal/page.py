@@ -116,7 +116,9 @@ def page_terminal(con: Client) -> None:
     user_id    = st.session_state.get("USER_ID", "")
     project_id = st.session_state.get("PROJECT_ID", "")
 
-    filter_co = None if (is_admin or role != "협력사") else company
+    # 관리자·삼성물산 직원은 role 과 무관하게 전체 점유 현황을 보고 반출 처리한다.
+    is_owner_co = company.strip() == "삼성물산"
+    filter_co = None if (is_admin or is_owner_co or role != "협력사") else company
     max_days  = terminal_max_days(con, project_id)
 
     st.markdown(
