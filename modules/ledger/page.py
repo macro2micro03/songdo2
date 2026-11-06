@@ -75,7 +75,9 @@ def page_ledger(con: Client):
     </style>
     """, unsafe_allow_html=True)
     st.markdown("### 📚 대장")
-    rows = req_list(con, None, None, 100)
+    # 등록일(created_at) 최신순 N건만 가져오므로, 한도가 작으면 미래 일정으로
+    # 먼저 입력된 반입 건이 대장 검색에서 누락된다. PostgREST 기본 상한(1000) 사용.
+    rows = req_list(con, None, None, 1000)
 
     is_admin  = st.session_state.get("IS_ADMIN", False)
     role      = st.session_state.get("USER_ROLE", "")
