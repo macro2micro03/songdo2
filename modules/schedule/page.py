@@ -785,6 +785,18 @@ def page_schedule(con):
             _tcomp: dict = {t: [] for t in _tz_opts_card}   # 터미널별 업체명 목록
             _overdue_terminals: set = set()   # 2일 초과 점유 터미널
             _ovd_threshold = (today_kst() - timedelta(days=2)).isoformat()
+            # 설정 터미널명에 "B2-06(설비 전용)" 처럼 설명이 붙어도 코드(B2-06)로 매칭
+            import re as _re
+            _code_to_key: dict = {}
+            for _k in _tocc:
+                _m = _re.match(r"^(B[12]-\d{2})(?!\d)", _k.strip())
+                if _m:
+                    _code_to_key.setdefault(_m.group(1), _k)
+            def _resolve_term(_name: str):
+                if _name in _tocc:
+                    return _name
+                _m = _re.match(r"^(B[12]-\d{2})(?!\d)", (_name or "").strip())
+                return _code_to_key.get(_m.group(1)) if _m else None
             _occ_res = (con.table("requests")
                         .select("id,gate,company_name,created_at")
                         .eq("project_id", project_id).eq("date", date_str)
@@ -797,6 +809,7 @@ def page_schedule(con):
                 _rid  = _rd.get("id", "")
                 _cat  = (_rd.get("created_at") or "")[:10]  # YYYY-MM-DD 부분만
                 _cname = (_rd.get("company_name") or "").strip()
+                _g = _resolve_term(_g) or _g
                 if _g in _tocc and _rid:
                     _tocc[_g].add(_rid)
                     if _cname and _cname not in _tcomp[_g]:
@@ -813,6 +826,7 @@ def page_schedule(con):
             except Exception:
                 _md_occ = {}
             for _mt, _minfo in _md_occ.items():
+                _mt = _resolve_term(_mt) or _mt
                 if _mt not in _tocc or _tocc[_mt]:
                     continue   # 설정 외 터미널이거나 이미 당일 반입으로 점유 표시 중
                 _tocc[_mt].add(_minfo.get("rid") or f"_md_{_mt}")
