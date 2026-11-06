@@ -852,8 +852,12 @@ def page_schedule(con):
                     continue
                 _now_state[_nk] = "ovd" if (_ninfo.get("start") or "")[:10] < _now_thr else "occ"
 
-            # 드롭다운 필터용: 점유 중 터미널 집합 (당일 반입 + 다중일 보관)
-            _occupied_terminals = {t for t, rids in _tocc.items() if rids}
+            # 기한초과 다중일 보관(해당 날짜 신규 반입 없음)은 신규 신청 시 '가능'으로 본다.
+            #  → 박스는 초록(가능), 동그라미(현재 상태)는 빨강으로 점유 사실을 알린다.
+            _ovd_free = {t for t in _overdue_terminals if t in _md_hold}
+
+            # 드롭다운 필터용: 점유 중 터미널 집합 (당일 반입 + 다중일 보관, 기한초과 보관 제외)
+            _occupied_terminals = {t for t, rids in _tocc.items() if rids and t not in _ovd_free}
 
             # 당일 해제된 터미널 목록 조회
             _step("8 터미널 점유 집계 완료")
@@ -922,7 +926,7 @@ def page_schedule(con):
                         _in_n    = len(_tocc[_t])
                         _freed   = _t in _released
                         # 신규 신청이 있으면 해제 여부 무관하게 점유 표시
-                        _is_free = _in_n == 0
+                        _is_free = _in_n == 0 or _t in _ovd_free
                         _is_ovd  = (not _is_free) and (_t in _overdue_terminals)
                         _cnt_txt = f" ×{_in_n}" if _in_n > 1 else ""
                         _ns      = _now_state.get(_t)
@@ -935,7 +939,7 @@ def page_schedule(con):
                             with st.container(key=f"tcard_{_ctype}_{_pi}_{_ci}"):
                                 if st.button(_label, key=f"tcard_btn_{_pi}_{_ci}",
                                              use_container_width=True):
-                                    if not _is_free or (_freed and _in_n > 0):
+                                    if not _is_free or _t in _ovd_free or (_freed and _in_n > 0):
                                         st.session_state["_term_dlg_trigger"]  = True
                                         st.session_state["_term_dlg_terminal"] = _t
                                         st.session_state["_term_dlg_in_n"]     = _in_n
@@ -943,7 +947,7 @@ def page_schedule(con):
                                         st.session_state["_term_dlg_hold"]     = _md_hold.get(_t)
                                         st.rerun()
                                 if _comp_txt:
-                                    _ctxt_color = "#991b1b" if _is_ovd else "#92400e"
+                                    _ctxt_color = "#991b1b" if (_is_ovd or _t in _ovd_free) else "#92400e"
                                     st.markdown(
                                         f'<div style="font-size:10px;color:{_ctxt_color};'
                                         f'text-align:center;margin-top:-8px;margin-bottom:10px;'
