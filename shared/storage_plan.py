@@ -290,3 +290,85 @@ def assign_storage(con: Client, rid: str, *, store_terminal: Optional[str],
 
 def release_storage(con: Client, rid: str) -> None:
     con.table("requests").update({"store_released": 1}).eq("id", rid).execute()
+
+
+_OCC_STYLE = {
+    # 상태: (배경, 테두리, 번호색, 라벨색)
+    "over": ("#fef2f2", "#ef4444", "#b91c1c", "#dc2626"),
+    "hold": ("#fefce8", "#fcd34d", "#92400e", "#a16207"),
+    "free": ("#f0fdf4", "#86efac", "#15803d", "#22c55e"),
+}
+_OCC_NOW_TXT = {"over": "기한초과", "hold": "점유", "free": "빈곳"}
+
+
+def _occ_status(o, max_days: int, ref) -> tuple:
+    """점유 정보 o 의 ref 날짜 기준 상태 → (상태, 종료예정 date|None)."""
+    if not o:
+        return "free", None
+    end_d = None
+    over = False
+    if max_days and o.get("start"):
+        try:
+            end_d = datetime.strptime(o["start"][:10], "%Y-%m-%d").date() + timedelta(days=max_days)
+            over = ref > end_d
+        except Exception:
+            end_d = None
+    return ("over" if over else "hold"), end_d
+
+
+def occ_grid_html(terminals, occ, max_days: int = 0, ref_date=None, now_occ=None) -> str:
+    """터미널 점유 도표 HTML — 터미널 탭·신청 화면 공용.
+
+    카드 배경 = ref_date(기본 오늘) 기준 상태(기한초과/점유중/빈곳).
+    now_occ(오늘 기준 점유)를 주면, ref_date 가 오늘이 아닐 때 테두리·'● 현재' 칩으로
+    현재(오늘) 상태를 함께 표시한다.
+    """
+    from shared.helpers import today_kst
+    today = today_kst()
+    ref = ref_date or today
+    show_now = now_occ is not None and ref != today
+    cells = []
+    for t in terminals:
+        o = occ.get(t)
+        stt, end_d = _occ_status(o, max_days, ref)
+        bg, border, num_clr, lbl_clr = _OCC_STYLE[stt]
+        bd_w = "1.5px" if stt == "free" else "2px"
+        bd = border
+        chip = ""
+        if show_now:
+            n_stt, _ = _occ_status(now_occ.get(t), max_days, today)
+            n_bd, n_clr = _OCC_STYLE[n_stt][1], _OCC_STYLE[n_stt][3] if n_stt != "free" else "#16a34a"
+            bd, bd_w = n_bd, "2px"
+            chip = (f"<div style='margin-top:3px;font-size:9px;font-weight:600;color:{n_clr};"
+                    f"white-space:nowrap;'>● 현재 {_OCC_NOW_TXT[n_stt]}</div>")
+        if o:
+            item_txt = (o.get("item") or "")[:9]
+            end_txt = f"~{end_d.month}/{end_d.day}" if end_d else ""
+            inner = (
+                f"<div style='font-size:11px;font-weight:700;color:{num_clr};'>{t}</div>"
+                f"<div style='font-size:10px;color:{lbl_clr};margin-top:1px;word-break:break-all;'>{item_txt}</div>"
+                f"<div style='font-size:10px;color:{lbl_clr};'>{end_txt}</div>"
+            )
+        else:
+            inner = (
+                f"<div style='font-size:11px;font-weight:700;color:{num_clr};'>{t}</div>"
+                f"<div style='font-size:10px;color:{lbl_clr};margin-top:2px;'>빈곳</div>"
+            )
+        cells.append(
+            f"<div style='width:68px;min-height:58px;background:{bg};border:{bd_w} solid {bd};"
+            f"border-radius:8px;padding:6px 4px;text-align:center;line-height:1.3;"
+            f"box-shadow:0 1px 3px rgba(0,0,0,0.08);'>{inner}{chip}</div>"
+        )
+    def _lg(bgc, bdc, txt, w="2px"):
+        return (f"<span style='display:inline-flex;align-items:center;gap:4px;'>"
+                f"<span style='width:12px;height:12px;background:{bgc};border:{w} solid {bdc};"
+                f"border-radius:3px;display:inline-block;'></span>{txt}</span>")
+    legend = (
+        "<div style='display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:8px;"
+        "font-size:11px;color:#64748b;'>"
+        + _lg("#fef2f2", "#ef4444", "기한초과") + _lg("#fefce8", "#fcd34d", "점유중")
+        + _lg("#f0fdf4", "#86efac", "빈곳", "1.5px")
+        + ("<span>· 테두리/● = 현재(오늘) 상태</span>" if show_now else "")
+        + "</div>"
+    )
+    return legend + "<div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;'>" + "".join(cells) + "</div>"

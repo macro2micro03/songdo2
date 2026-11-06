@@ -12,34 +12,9 @@ from shared.helpers import req_display_id, phone_input, today_kst
 from shared.storage_plan import (
     terminals_b1, terminals_b2, occupancy_on, default_days,
     ground_zones, haeyeok_booked_slots, haeyeok_slots, slot_end,
+    occ_grid_html,
 )
 
-
-def _occ_grid_html(terminals, occ, selected=None, max_days: int = 0) -> str:
-    from datetime import date as _d, timedelta
-    cells = []
-    for t in terminals:
-        o = occ.get(t)
-        if o:
-            bg, fg = "#fee2e2", "#b91c1c"
-            item_txt = (o.get('item') or '')[:8]
-            end_txt = ""
-            if max_days and o.get('start'):
-                try:
-                    end_d = _d.fromisoformat(o['start'][:10]) + timedelta(days=max_days)
-                    end_txt = f"<br>~{end_d.month}/{end_d.day}"
-                except Exception:
-                    pass
-            sub = f"{item_txt}{end_txt}"
-        else:
-            bg, fg, sub = "#dcfce7", "#15803d", "빈곳"
-        border = "2px solid #2563eb" if t == selected else "1px solid #e2e8f0"
-        cells.append(
-            f"<div style='width:62px;background:{bg};color:{fg};border:{border};"
-            f"border-radius:6px;padding:4px 2px;text-align:center;font-size:10px;line-height:1.2;'>"
-            f"<b>{t}</b><br><span style='font-size:9px'>{sub}</span></div>"
-        )
-    return "<div style='display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;'>" + "".join(cells) + "</div>"
 
 _TIME_SLOTS = [f"{h:02d}:{m:02d}" for h in range(5, 21) for m in (0, 30)] + ["20:00"]
 # 중복 제거 및 정렬
@@ -99,16 +74,21 @@ def page_request(con: Client):
                 for r in _rows:
                     st.markdown(r)
 
-    # 보관 터미널 점유 현황 (참조용)
+    # 보관 터미널 점유 현황 (참조용) — 배경=신청일 기준, 테두리/●=현재(오늘) 상태
     with st.expander("📦 보관 터미널 점유 현황 (B1F · B2F)"):
         _occ_date = str(date_val)
+        _today_s  = today_kst().isoformat()
         _occ = occupancy_on(con, project_id, _occ_date)
+        _now_occ = occupancy_on(con, project_id, _today_s) if _occ_date != _today_s else None
         _max_days = default_days(con)
-        st.caption(f"📅 {_occ_date} 기준 점유 현황 (빨강=점유, 초록=빈곳)")
+        if _now_occ is None:
+            st.caption(f"📅 오늘({_occ_date}) 기준 점유 현황")
+        else:
+            st.caption(f"📅 신청일({_occ_date}) 기준 점유 현황 (배경색) · 현재(오늘 {_today_s}) 상태는 테두리/● 로 표시")
         st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:6px 0 6px'>B1F</div>", unsafe_allow_html=True)
-        st.markdown(_occ_grid_html(terminals_b1(), _occ, max_days=_max_days), unsafe_allow_html=True)
+        st.markdown(occ_grid_html(terminals_b1(), _occ, _max_days, date_val, _now_occ), unsafe_allow_html=True)
         st.markdown("<div style='font-size:13px;font-weight:600;color:#475569;margin:10px 0 6px'>B2F</div>", unsafe_allow_html=True)
-        st.markdown(_occ_grid_html(terminals_b2(), _occ, max_days=_max_days), unsafe_allow_html=True)
+        st.markdown(occ_grid_html(terminals_b2(), _occ, _max_days, date_val, _now_occ), unsafe_allow_html=True)
 
     c1, _ = st.columns(2)
     with c1:

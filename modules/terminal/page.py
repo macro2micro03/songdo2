@@ -7,60 +7,8 @@ from supabase import Client
 from modules.terminal.crud import (
     terminal_max_days, terminal_occupied, terminal_history, terminal_release,
 )
-from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, floor_image
+from shared.storage_plan import terminals_b1, terminals_b2, occupancy_on, floor_image, occ_grid_html
 from shared.helpers import today_kst
-
-
-def _occ_grid_html(terminals, occ, max_days: int = 0) -> str:
-    from datetime import date as _d, timedelta
-    today = _d.today()
-    cells = []
-    for t in terminals:
-        o = occ.get(t)
-        if o:
-            item_txt = (o.get('item') or '')[:9]
-            end_txt = ""
-            overdue = False
-            if max_days and o.get('start'):
-                try:
-                    start_d = _d.fromisoformat(o['start'][:10])
-                    end_d   = start_d + timedelta(days=max_days)
-                    overdue = today > end_d
-                    end_txt = f"<div style='font-size:10px;margin-top:2px;'>~{end_d.month}/{end_d.day}</div>"
-                except Exception:
-                    pass
-            if overdue:
-                bg, border, num_clr, lbl_clr = "#fef2f2", "2px solid #ef4444", "#b91c1c", "#dc2626"
-            else:
-                bg, border, num_clr, lbl_clr = "#fefce8", "2px solid #fcd34d", "#92400e", "#a16207"
-            inner = (
-                f"<div style='font-size:11px;font-weight:700;color:{num_clr};'>{t}</div>"
-                f"<div style='font-size:10px;color:{lbl_clr};margin-top:1px;word-break:break-all;'>{item_txt}</div>"
-                f"<div style='font-size:10px;color:{lbl_clr};'>{end_txt}</div>"
-            )
-        else:
-            bg, border, num_clr = "#f0fdf4", "1.5px solid #86efac", "#15803d"
-            inner = (
-                f"<div style='font-size:11px;font-weight:700;color:{num_clr};'>{t}</div>"
-                f"<div style='font-size:10px;color:#22c55e;margin-top:2px;'>빈곳</div>"
-            )
-        cells.append(
-            f"<div style='width:68px;min-height:58px;background:{bg};border:{border};"
-            f"border-radius:8px;padding:6px 4px;text-align:center;line-height:1.3;"
-            f"box-shadow:0 1px 3px rgba(0,0,0,0.08);'>{inner}</div>"
-        )
-    legend = (
-        "<div style='display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size:11px;color:#64748b;'>"
-        "<span style='display:inline-flex;align-items:center;gap:4px;'>"
-        "<span style='width:12px;height:12px;background:#fef2f2;border:2px solid #ef4444;border-radius:3px;display:inline-block;'></span>기한초과</span>"
-        "<span style='display:inline-flex;align-items:center;gap:4px;'>"
-        "<span style='width:12px;height:12px;background:#fefce8;border:2px solid #fcd34d;border-radius:3px;display:inline-block;'></span>점유중</span>"
-        "<span style='display:inline-flex;align-items:center;gap:4px;'>"
-        "<span style='width:12px;height:12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:3px;display:inline-block;'></span>빈곳</span>"
-        "</div>"
-    )
-    grid = "<div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;'>" + "".join(cells) + "</div>"
-    return legend + grid
 
 
 def _render_floor(rows, label, max_days, today, user_id, con):
@@ -137,12 +85,12 @@ def page_terminal(con: Client) -> None:
             img = floor_image("b1")
             if img:
                 st.image(img, use_container_width=True)
-            st.markdown(_occ_grid_html(terminals_b1(), _occ, max_days), unsafe_allow_html=True)
+            st.markdown(occ_grid_html(terminals_b1(), _occ, max_days), unsafe_allow_html=True)
         else:
             img = floor_image("b2")
             if img:
                 st.image(img, use_container_width=True)
-            st.markdown(_occ_grid_html(terminals_b2(), _occ, max_days), unsafe_allow_html=True)
+            st.markdown(occ_grid_html(terminals_b2(), _occ, max_days), unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["보관 현황", "반출 이력"])
 
