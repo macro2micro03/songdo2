@@ -784,7 +784,7 @@ def page_schedule(con):
             _tocc: dict = {t: set() for t in _tz_opts_card}
             _tcomp: dict = {t: [] for t in _tz_opts_card}   # 터미널별 업체명 목록
             _overdue_terminals: set = set()   # 2일 초과 점유 터미널
-            _ovd_threshold = (today_kst() - timedelta(days=2)).isoformat()
+            _ovd_threshold = (current_date - timedelta(days=2)).isoformat()   # 박스 = 선택한 날짜 기준
             # 설정 터미널명에 "B2-06(설비 전용)" 처럼 설명이 붙어도 코드(B2-06)로 매칭
             import re as _re
             _code_to_key: dict = {}
@@ -836,6 +836,21 @@ def page_schedule(con):
                 if (_minfo.get("start") or "")[:10] < _ovd_threshold:
                     _overdue_terminals.add(_mt)
                 _md_hold[_mt] = _minfo
+
+            # ── 현재(오늘) 점유 상태 — 박스 안 동그라미(🟢🟡🔴)용 ─────────────────
+            #    박스(배경·테두리)는 선택한 날짜 기준, 동그라미는 오늘 기준.
+            _today_iso = today_kst().isoformat()
+            _now_thr   = (today_kst() - timedelta(days=2)).isoformat()
+            _now_state: dict = {}   # 설정 터미널명 → "occ" | "ovd"
+            try:
+                _now_occ = occupancy_on(con, project_id, _today_iso)
+            except Exception:
+                _now_occ = {}
+            for _nt, _ninfo in _now_occ.items():
+                _nk = _resolve_term(_nt)
+                if not _nk:
+                    continue
+                _now_state[_nk] = "ovd" if (_ninfo.get("start") or "")[:10] < _now_thr else "occ"
 
             # 드롭다운 필터용: 점유 중 터미널 집합 (당일 반입 + 다중일 보관)
             _occupied_terminals = {t for t, rids in _tocc.items() if rids}
@@ -896,7 +911,9 @@ def page_schedule(con):
             }
             </style>""", unsafe_allow_html=True)
 
-            st.markdown('<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:10px;">🅿️ 터미널 점유 현황</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:10px;">🅿️ 터미널 점유 현황'
+                        '<span style="font-weight:400;margin-left:8px;">박스 색 = 선택한 날짜 기준 · 동그라미 = 현재(오늘) 점유 기준</span></div>',
+                        unsafe_allow_html=True)
             with st.container(key="term_card_wrap"):
                 _quads = [_tz_opts_card[i:i+4] for i in range(0, len(_tz_opts_card), 4)]
                 for _pi, _quad in enumerate(_quads):
@@ -908,7 +925,8 @@ def page_schedule(con):
                         _is_free = _in_n == 0
                         _is_ovd  = (not _is_free) and (_t in _overdue_terminals)
                         _cnt_txt = f" ×{_in_n}" if _in_n > 1 else ""
-                        _emoji   = '🟢' if _is_free else ('🔴' if _is_ovd else '🟡')
+                        _ns      = _now_state.get(_t)
+                        _emoji   = '🟢' if not _ns else ('🔴' if _ns == "ovd" else '🟡')   # 현재(오늘) 기준
                         _label   = f"{_emoji}  {_t}{_cnt_txt}"
                         _ctype   = "free" if _is_free else ("ovd" if _is_ovd else "occ")
                         _comp_names = _tcomp.get(_t, [])
