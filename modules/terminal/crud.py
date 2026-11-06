@@ -12,7 +12,8 @@ from db.models import settings_get
 from shared.helpers import now_str, today_kst
 from shared.storage_plan import _storage_rows
 
-_TERMINAL_RE = re.compile(r"^B[12]-\d{2}$")
+# gate 값에 "B2-12(타일 전용)", "B1-03 (에어컨,가스)" 처럼 설명이 붙을 수 있어 앞부분 코드만 인식
+_TERMINAL_RE = re.compile(r"^(B[12]-\d{2})(?!\d)")
 _BLOCKED = {"PENDING_APPROVAL", "APPROVED", "EXECUTING", "DONE"}
 
 _SEL = ("id,company_name,item_name,status,kind,date,"
@@ -21,11 +22,13 @@ _SEL = ("id,company_name,item_name,status,kind,date,"
 
 def _eff_terminal(r: Dict) -> Optional[str]:
     t = (r.get("store_terminal") or "").strip()
-    if _TERMINAL_RE.match(t):
-        return t
+    m = _TERMINAL_RE.match(t)
+    if m:
+        return m.group(1)
     g = (r.get("gate") or "").split("|")[0].strip()
-    if _TERMINAL_RE.match(g):
-        return g
+    m = _TERMINAL_RE.match(g)
+    if m:
+        return m.group(1)
     return None
 
 

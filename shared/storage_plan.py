@@ -23,7 +23,8 @@ _STORAGE_ROWS_TTL = 30    # 점유 현황 — 30초
 
 # 점유로 치는 요청 상태 (대기·승인·실행·완료/보관중). 반려 제외.
 STORAGE_BLOCKING_STATUS = {"PENDING_APPROVAL", "APPROVED", "EXECUTING", "DONE"}
-_TERMINAL_RE = re.compile(r"^B[12]-\d{2}$")
+# gate 값에 "B2-12(타일 전용)", "B1-03 (에어컨,가스)" 처럼 설명이 붙을 수 있어 앞부분 코드만 인식
+_TERMINAL_RE = re.compile(r"^(B[12]-\d{2})(?!\d)")
 
 
 def floor_image(name: str) -> Optional[str]:
@@ -161,11 +162,13 @@ def _overlaps(s1: str, e1: str, s2: str, e2: str) -> bool:
 def _eff_terminal(r: Dict[str, Any]) -> Optional[str]:
     """유효 터미널: store_terminal 우선, 없으면 gate(터미널 형식일 때만)."""
     t = (r.get("store_terminal") or "").strip()
-    if _TERMINAL_RE.match(t):
-        return t
+    m = _TERMINAL_RE.match(t)
+    if m:
+        return m.group(1)
     g = (r.get("gate") or "").split("|")[0].strip()
-    if _TERMINAL_RE.match(g):
-        return g
+    m = _TERMINAL_RE.match(g)
+    if m:
+        return m.group(1)
     return None
 
 
